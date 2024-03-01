@@ -1,0 +1,3 @@
+[submodule "wasm-instrument"]
+	path = wasm-instrument
+	url = https://github.com/arjunr2/wasm-instrument.git
