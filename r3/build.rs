@@ -1,4 +1,7 @@
+use cmake;
+
 fn main() {
-    println!("cargo:rustc-link-search=native=../wasm-instrument/build/");
+    let dst = cmake::build("../wasm-instrument");
+    println!("cargo:rustc-link-search=native={}", dst.display());
     println!("cargo:rustc-link-lib=stdc++");
 }

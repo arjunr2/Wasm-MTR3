@@ -8,4 +8,8 @@ build = "build.rs"
 
 [dependencies]
 clap = "4.5.1"
+cmake = "0.1.50"
 libc = "0.2.153"
+
+[build-dependencies]
+cmake = "0.1.50"

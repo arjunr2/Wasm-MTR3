@@ -13,9 +13,10 @@ extern {
 
 pub fn loop_count(contents: Vec<u8>) -> Result<&'static [u8], Box<dyn Error>> {
     let routine = CString::new("loop-count")?;
-    let args: [&str;1] = [""];
-    let num_args: u32 = 0;
-    let args_c: Vec<*const u8> = args.iter().map(|s| s.as_ptr()).collect();
+    let args: [&str;0] = [];
+    let args_c: Vec<*const i8> = args.iter().map(
+        |s| CString::new(*s).unwrap().as_ptr()).collect();
+    //let args_c: Vec<*const u8> = args.iter().map(|s| s.as_ptr()).collect();
     let mut outsize: u32 = 0;
     let outsize_ptr: *mut u32 = &mut outsize;
     let outslice: &[u8];
@@ -26,7 +27,7 @@ pub fn loop_count(contents: Vec<u8>) -> Result<&'static [u8], Box<dyn Error>> {
                 outsize_ptr, 
                 routine.as_ptr() as *const libc::c_char, 
                 args_c.as_ptr() as *const *const libc::c_char, 
-                num_args);
+                args_c.len() as u32);
         outslice = slice::from_raw_parts(outbuf as *const u8, outsize as usize);
     };
     println!("Routine: {}", routine.into_string().expect("Routine cannot be converted to String"));
