@@ -11,12 +11,14 @@ extern {
 }
 
 
-pub fn loop_count(contents: Vec<u8>) -> Result<&'static [u8], Box<dyn Error>> {
-    let routine = CString::new("loop-count")?;
-    let args: [&str;0] = [];
-    let args_c: Vec<*const i8> = args.iter().map(
-        |s| CString::new(*s).unwrap().as_ptr()).collect();
-    //let args_c: Vec<*const u8> = args.iter().map(|s| s.as_ptr()).collect();
+pub fn instrument_module(contents: Vec<u8>, routine: &str, args: &[&str]) -> Result<&'static [u8], Box<dyn Error>> {
+    println!("Routine: {}", routine);
+
+    let c_routine = CString::new(routine)?;
+    let args_cstr: Vec<CString> = args.iter().map(
+        |s| CString::new(*s).unwrap()).collect();
+    let c_args: Vec<*const i8> = args_cstr.iter().map(
+        |s| s.as_ptr()).collect();
     let mut outsize: u32 = 0;
     let outsize_ptr: *mut u32 = &mut outsize;
     let outslice: &[u8];
@@ -25,19 +27,21 @@ pub fn loop_count(contents: Vec<u8>) -> Result<&'static [u8], Box<dyn Error>> {
             instrument_module_buffer(contents.as_ptr() as *const libc::c_char, 
                 contents.len() as u32, 
                 outsize_ptr, 
-                routine.as_ptr() as *const libc::c_char, 
-                args_c.as_ptr() as *const *const libc::c_char, 
-                args_c.len() as u32);
+                c_routine.as_ptr() as *const libc::c_char, 
+                c_args.as_ptr() as *const *const libc::c_char, 
+                c_args.len() as u32);
         outslice = slice::from_raw_parts(outbuf as *const u8, outsize as usize);
     };
-    println!("Routine: {}", routine.into_string().expect("Routine cannot be converted to String"));
     println!("Insize: {}, Outsize: {}", contents.len(), outsize);
     return Ok(outslice);
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     let contents = fs::read("lua.wasm")?;
-    let out_module: &[u8] = loop_count(contents)?;
+    let routine = "memaccess-stochastic";
+    let args: [&str;2] = ["30", "1"];
+
+    let out_module: &[u8] = instrument_module(contents, routine, &args)?;
     fs::write("out.wasm", out_module)?;
     return Ok(());
 }
