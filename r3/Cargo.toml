@@ -9,7 +9,9 @@ build = "build.rs"
 [dependencies]
 clap = { version = "4.5.1", features = ["derive"] }
 cmake = "0.1.50"
+env_logger = "0.11.3"
 libc = "0.2.153"
+log = "0.4.21"
 
 [build-dependencies]
 cmake = "0.1.50"
