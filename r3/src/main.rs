@@ -13,6 +13,14 @@ struct CLI {
     #[arg(short, long)]
     outfile: String,
 
+    /// Instrumentation Scheme
+    #[arg(short, long, default_value_t = String::from("empty"))]
+    scheme: String,
+
+    /// Instrumentation Arguments
+    #[arg(short, long, num_args = 0..)]
+    args: Vec<String>,
+
     /// Input file name
     infile: String,
 }
@@ -21,6 +29,8 @@ struct CLI {
 extern {
     fn instrument_module_buffer(inbuf: *const c_char, insize: u32, 
         outsize: *mut u32, routine: *const c_char, args: *const *const c_char, num_args: u32) -> *mut c_char;
+
+    fn destroy_file_buf(buf: *const c_char) -> ();
 }
 
 
@@ -49,14 +59,19 @@ pub fn instrument_module(contents: Vec<u8>, routine: &str, args: &[&str]) -> Res
     return Ok(outslice);
 }
 
+
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     let cli = CLI::parse();
     let contents = fs::read(cli.infile)?;
-    let routine = "memaccess-stochastic";
-    let args: [&str;2] = ["30", "1"];
+    let args: Vec<&str> = cli.args.iter().map(|s| s.as_str()).collect();
 
-    let out_module: &[u8] = instrument_module(contents, routine, &args)?;
-    fs::write(cli.outfile, out_module)?;
+    {
+        let out_module: &[u8] = instrument_module(contents, cli.scheme.as_str(), &args[..])?;
+        fs::write(cli.outfile, out_module)?;
+        unsafe {
+            destroy_file_buf(out_module.as_ptr() as *const c_char);
+        }
+    }
     return Ok(());
 }
