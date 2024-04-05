@@ -1,77 +1,66 @@
-use libc::{c_char};
-use log::{info};
+use log::{info, log_enabled, Level};
 use clap::Parser;
-use std::ffi::CString;
 use std::fs;
-use std::slice;
 use std::error::{Error};
+
+mod instrument;
+use instrument::{instrument_module, destroy_instrument_module};
+
+use wamr_rust_sdk::{
+    runtime::Runtime, module::Module, instance::Instance,
+};
+
 
 #[derive(Parser,Debug)]
 #[command(version, about, long_about=None)]
 struct CLI {
-    /// Output file name
-    #[arg(short, long)]
-    outfile: String,
-
     /// Instrumentation Scheme
     #[arg(short, long, default_value_t = String::from("empty"))]
     scheme: String,
 
     /// Instrumentation Arguments
     #[arg(short, long, num_args = 0..)]
-    args: Vec<String>,
+    instargs: Vec<String>,
 
-    /// Input file name
+    /// Program arguments 
+    #[arg(short, long, num_args = 0..)]
+    progargs: Vec<String>, 
+    
+    /// Output program (instrumented) path
+    #[arg(short, long)]
+    outfile: Option<String>,
+
+    /// Input program path
     infile: String,
-}
-
-#[link(name = "wasminstrument", kind = "static")]
-extern {
-    fn instrument_module_buffer(inbuf: *const c_char, insize: u32, 
-        outsize: *mut u32, routine: *const c_char, args: *const *const c_char, num_args: u32) -> *mut c_char;
-
-    fn destroy_file_buf(buf: *const c_char) -> ();
-}
-
-
-pub fn instrument_module(contents: Vec<u8>, routine: &str, args: &[&str]) -> Result<&'static [u8], Box<dyn Error>> {
-    info!("Routine: {}", routine);
-
-    let c_routine = CString::new(routine)?;
-    let args_cstr: Vec<CString> = args.iter().map(
-        |s| CString::new(*s).unwrap()).collect();
-    let c_args: Vec<*const i8> = args_cstr.iter().map(
-        |s| s.as_ptr()).collect();
-    let mut outsize: u32 = 0;
-    let outsize_ptr: *mut u32 = &mut outsize;
-    let outslice: &[u8];
-    unsafe {
-        let outbuf: *mut c_char = 
-            instrument_module_buffer(contents.as_ptr() as *const c_char, 
-                contents.len() as u32, 
-                outsize_ptr, 
-                c_routine.as_ptr() as *const c_char, 
-                c_args.as_ptr() as *const *const c_char, 
-                c_args.len() as u32);
-        outslice = slice::from_raw_parts(outbuf as *const u8, outsize as usize);
-    };
-    info!("Insize: {}, Outsize: {}", contents.len(), outsize);
-    return Ok(outslice);
 }
 
 
 fn main() -> Result<(), Box<dyn Error>> {
-    env_logger::init();
-    let cli = CLI::parse();
-    let contents = fs::read(cli.infile)?;
-    let args: Vec<&str> = cli.args.iter().map(|s| s.as_str()).collect();
+    env_logger::builder()
+        .filter_level(log::LevelFilter::Info)
+        .init();
 
-    {
-        let out_module: &[u8] = instrument_module(contents, cli.scheme.as_str(), &args[..])?;
-        fs::write(cli.outfile, out_module)?;
-        unsafe {
-            destroy_file_buf(out_module.as_ptr() as *const c_char);
-        }
+    let cli = CLI::parse();
+    let contents = fs::read(&cli.infile)?;
+    let args: Vec<&str> = cli.instargs.iter().map(|s| s.as_str()).collect();
+
+    let out_module: &[u8] = instrument_module(contents, cli.scheme.as_str(), &args[..])?;
+    if log_enabled!(Level::Debug) {
+        let outfile = cli.outfile.expect("Outfile is required for running in debug level");
+        info!("Writing module to {}", outfile);
+        fs::write(outfile, out_module)?;
     }
+
+    /* WAMR Instantiate and Run */
+    let runtime = Runtime::new()?;
+    let module = Module::from_buf(&runtime, out_module, "test-module")?;
+    let instance = Instance::new(&runtime, &module, 1024 * 256)?;
+
+    let _ = instance.execute_main(&cli.progargs)?;
+
+    info!("Successful execution of wasm");
+
+    destroy_instrument_module(out_module);
+
     return Ok(());
 }
