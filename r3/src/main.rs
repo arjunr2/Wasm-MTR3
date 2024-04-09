@@ -23,17 +23,24 @@ struct CLI {
     instargs: Vec<String>,
 
     /// Program arguments 
-    #[arg(short, long, num_args = 0..)]
-    progargs: Vec<String>, 
+    //#[arg(short, long, num_args = 0..)]
+    //progargs: Vec<String>, 
     
     /// Output program (instrumented) path
     #[arg(short, long)]
     outfile: Option<String>,
 
-    /// Input program path
-    infile: String,
+    /// Input Command (Wasm program path + Argv) 
+    #[arg(num_args = 1..)]
+    input_command: Vec<String>,
 }
 
+fn print_cli(cli: &CLI) {
+    info!("Scheme: {}", cli.scheme);
+    info!("Instrumentation Arguments: {:?}", cli.instargs);
+    info!("Input Command: {:?}", cli.input_command);
+    info!("Outfile [optional]: {:?}", cli.outfile);
+}
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::builder()
@@ -41,22 +48,26 @@ fn main() -> Result<(), Box<dyn Error>> {
         .init();
 
     let cli = CLI::parse();
-    let contents = fs::read(&cli.infile)?;
+    print_cli(&cli);
+    let infile = cli.input_command[0].as_str();
+    let contents = fs::read(infile)?;
     let args: Vec<&str> = cli.instargs.iter().map(|s| s.as_str()).collect();
 
     let out_module: &[u8] = instrument_module(contents, cli.scheme.as_str(), &args[..])?;
     if log_enabled!(Level::Debug) {
-        let outfile = cli.outfile.expect("Outfile is required for running in debug level");
+        panic!("Outfile is required for running in debug level");
+    }
+    if let Some(outfile) = cli.outfile {
         info!("Writing module to {}", outfile);
         fs::write(outfile, out_module)?;
     }
 
     /* WAMR Instantiate and Run */
     let runtime = Runtime::new()?;
-    let module = Module::from_buf(&runtime, out_module, "test-module")?;
+    let module = Module::from_buf(&runtime, out_module, infile)?;
     let instance = Instance::new(&runtime, &module, 1024 * 256)?;
 
-    let _ = instance.execute_main(&cli.progargs)?;
+    let _ = instance.execute_main(&cli.input_command)?;
 
     info!("Successful execution of wasm");
 

@@ -15,8 +15,6 @@ extern {
 
 
 pub fn instrument_module(contents: Vec<u8>, routine: &str, args: &[&str]) -> Result<&'static [u8], Box<dyn Error>> {
-    info!("Routine: {}", routine);
-
     let c_routine = CString::new(routine)?;
     let args_cstr: Vec<CString> = args.iter().map(
         |s| CString::new(*s).unwrap()).collect();
@@ -35,7 +33,7 @@ pub fn instrument_module(contents: Vec<u8>, routine: &str, args: &[&str]) -> Res
                 c_args.len() as u32);
         outslice = slice::from_raw_parts(outbuf as *const u8, outsize as usize);
     };
-    info!("Insize: {}, Outsize: {}", contents.len(), outsize);
+    info!("Instrument | Insize: {}, Outsize: {}", contents.len(), outsize);
     return Ok(outslice);
 }
 
