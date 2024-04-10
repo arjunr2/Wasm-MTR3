@@ -10,6 +10,10 @@ use wamr_rust_sdk::{
     runtime::Runtime, module::Module, instance::Instance,
 };
 
+use wamr_rust_sdk::{
+    log_level_t,
+    LOG_LEVEL_WARNING
+};
 
 #[derive(Parser,Debug)]
 #[command(version, about, long_about=None)]
@@ -22,10 +26,10 @@ struct CLI {
     #[arg(short, long, num_args = 0..)]
     instargs: Vec<String>,
 
-    /// Program arguments 
-    //#[arg(short, long, num_args = 0..)]
-    //progargs: Vec<String>, 
-    
+    /// Runtime log-level
+    #[arg(short, long, default_value_t = LOG_LEVEL_WARNING)]
+    verbose: log_level_t,
+
     /// Output program (instrumented) path
     #[arg(short, long)]
     outfile: Option<String>,
@@ -63,7 +67,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     /* WAMR Instantiate and Run */
-    let runtime = Runtime::new()?;
+    //let runtime = Runtime::new()?;
+    let runtime = Runtime::builder()
+        .use_system_allocator()
+        .set_max_thread_num(20)
+        .build()?;
+    runtime.set_log_level(cli.verbose);
     let module = Module::from_buf(&runtime, out_module, infile)?;
     let instance = Instance::new(&runtime, &module, 1024 * 256)?;
 
