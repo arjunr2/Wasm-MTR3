@@ -445,7 +445,7 @@ checksum = "711b9620af191e0cdc7468a8d14e709c3dcdb115b36f838e601583af800a370a"
 [[package]]
 name = "wamr-rust-sdk"
 version = "0.1.0"
-source = "git+https://github.com/arjunr2/wamr-rust-sdk.git#26561bdfb8d31883c433c3ef9a005a67395aef2c"
+source = "git+https://github.com/arjunr2/wamr-rust-sdk.git#de63fc70f5ae86fe7767206ea0ecdd48cba248b7"
 dependencies = [
  "wamr-sys",
 ]
@@ -453,7 +453,7 @@ dependencies = [
 [[package]]
 name = "wamr-sys"
 version = "0.1.0"
-source = "git+https://github.com/arjunr2/wamr-rust-sdk.git#26561bdfb8d31883c433c3ef9a005a67395aef2c"
+source = "git+https://github.com/arjunr2/wamr-rust-sdk.git#de63fc70f5ae86fe7767206ea0ecdd48cba248b7"
 dependencies = [
  "bindgen",
  "cc",

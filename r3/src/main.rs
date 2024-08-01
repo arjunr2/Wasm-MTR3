@@ -1,4 +1,4 @@
-use log::{info, log_enabled, Level};
+use log::{info};
 use clap::Parser;
 use std::fs;
 use libc::c_void;
@@ -18,7 +18,7 @@ mod instrument;
 use instrument::{instrument_module, destroy_instrument_module};
 
 mod tracer;
-use tracer::{wasm_tracedump};
+use tracer::{wasm_memop_tracedump, wasm_call_tracedump};
 
 
 #[derive(Parser,Debug)]
@@ -54,9 +54,10 @@ fn print_cli(cli: &CLI) {
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::builder()
-        .filter_level(log::LevelFilter::Info)
+        .format_timestamp_millis()
         .init();
 
+        //.filter_level(log::LevelFilter::Info)
     let cli = CLI::parse();
     print_cli(&cli);
     let infile = cli.input_command[0].as_str();
@@ -64,9 +65,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<&str> = cli.instargs.iter().map(|s| s.as_str()).collect();
 
     let out_module: &[u8] = instrument_module(contents, cli.scheme.as_str(), &args[..])?;
-    if log_enabled!(Level::Debug) {
-        panic!("Outfile is required for running in debug level");
-    }
     if let Some(outfile) = cli.outfile {
         info!("Writing module to {}", outfile);
         fs::write(outfile, out_module)?;
@@ -76,8 +74,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let runtime = Runtime::builder()
         .use_system_allocator()
         .set_host_function_module_name("instrument")
-        .register_host_function("tracedump", wasm_tracedump as *mut c_void)
-        .set_max_thread_num(20)
+        .register_host_function("memop_tracedump", wasm_memop_tracedump as *mut c_void)
+        .register_host_function("call_tracedump", wasm_call_tracedump as *mut c_void)
+        .set_max_thread_num(100)
         .build()?;
     runtime.set_log_level(cli.verbose);
     let module = Module::from_buf(&runtime, out_module, infile)?;

@@ -13,6 +13,7 @@ env_logger = "0.11.3"
 libc = "0.2.153"
 log = "0.4.21"
 wamr-rust-sdk = { git = "https://github.com/arjunr2/wamr-rust-sdk.git" }
+#wamr-rust-sdk = { path = "../../wamr-rust-sdk" }
 
 [build-dependencies]
 bindgen = "0.69.4"
