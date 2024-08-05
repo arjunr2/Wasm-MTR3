@@ -18,7 +18,7 @@ mod instrument;
 use instrument::{instrument_module, destroy_instrument_module};
 
 mod tracer;
-use tracer::{wasm_memop_tracedump, wasm_call_tracedump};
+use tracer::{wasm_memop_tracedump, wasm_call_tracedump, dump_global_trace};
 
 
 #[derive(Parser,Debug)]
@@ -29,16 +29,20 @@ struct CLI {
     scheme: String,
 
     /// Instrumentation Arguments
-    #[arg(short, long, num_args = 0..)]
+    #[arg(short = 'a', long = "args", num_args = 0..)]
     instargs: Vec<String>,
 
     /// Runtime log-level
     #[arg(short, long, default_value_t = LOG_LEVEL_WARNING)]
     verbose: log_level_t,
 
-    /// Output program (instrumented) path
+    /// Output trace path
+    #[arg(short, long, default_value_t = String::from("trace.r3"))]
+    outfile: String,
+
+    /// Instrumented program path
     #[arg(short, long)]
-    outfile: Option<String>,
+    instfile: Option<String>,
 
     /// Input Command (Wasm program path + Argv) 
     #[arg(num_args = 1..)]
@@ -49,7 +53,8 @@ fn print_cli(cli: &CLI) {
     info!("Scheme: {}", cli.scheme);
     info!("Instrumentation Arguments: {:?}", cli.instargs);
     info!("Input Command: {:?}", cli.input_command);
-    info!("Outfile [optional]: {:?}", cli.outfile);
+    info!("Instfile [optional]: {:?}", cli.instfile);
+    info!("Outfile: {:?}", cli.outfile);
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -64,10 +69,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let contents = fs::read(infile)?;
     let args: Vec<&str> = cli.instargs.iter().map(|s| s.as_str()).collect();
 
-    let out_module: &[u8] = instrument_module(contents, cli.scheme.as_str(), &args[..])?;
-    if let Some(outfile) = cli.outfile {
-        info!("Writing module to {}", outfile);
-        fs::write(outfile, out_module)?;
+    let inst_module: &[u8] = instrument_module(contents, cli.scheme.as_str(), &args[..])?;
+    if let Some(instfile) = cli.instfile {
+        info!("Writing module to {}", instfile);
+        fs::write(instfile, inst_module)?;
     }
 
     /* WAMR Instantiate and Run */
@@ -79,14 +84,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         .set_max_thread_num(100)
         .build()?;
     runtime.set_log_level(cli.verbose);
-    let module = Module::from_buf(&runtime, out_module, infile)?;
+    let module = Module::from_buf(&runtime, inst_module, infile)?;
     let instance = Instance::new(&runtime, &module, 1024 * 256)?;
 
     let _ = instance.execute_main(&cli.input_command)?;
 
     info!("Successful execution of wasm");
 
-    destroy_instrument_module(out_module);
+    dump_global_trace(&cli.outfile)?;
+    info!("Dumped trace to {}", cli.outfile);
+
+    destroy_instrument_module(inst_module);
 
     return Ok(());
 }
