@@ -14,8 +14,8 @@ use wamr_rust_sdk::{
 };
 
 
-mod instrument;
-use instrument::{instrument_module, destroy_instrument_module};
+//mod instrument;
+use common::instrument::{instrument_module, destroy_instrument_module};
 
 mod tracer;
 use tracer::{wasm_memop_tracedump, wasm_call_tracedump, dump_global_trace};

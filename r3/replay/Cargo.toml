@@ -1,0 +1,8 @@
+[package]
+name = "replay"
+edition = "2021"
+authors.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
