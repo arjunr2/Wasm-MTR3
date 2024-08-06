@@ -2,6 +2,7 @@ use log::{info};
 use clap::Parser;
 use std::fs;
 use libc::c_void;
+use sha256::digest;
 use std::error::{Error};
 
 use wamr_rust_sdk::{
@@ -13,8 +14,6 @@ use wamr_rust_sdk::{
     LOG_LEVEL_WARNING
 };
 
-
-//mod instrument;
 use common::instrument::{instrument_module, destroy_instrument_module};
 
 mod tracer;
@@ -25,14 +24,14 @@ use tracer::{wasm_memop_tracedump, wasm_call_tracedump, dump_global_trace};
 #[command(version, about, long_about=None)]
 struct CLI {
     /// Instrumentation Scheme
-    #[arg(short, long, default_value_t = String::from("empty"))]
+    #[arg(short, long, default_value_t = String::from("r3-record"))]
     scheme: String,
 
     /// Instrumentation Arguments
     #[arg(short = 'a', long = "args", num_args = 0..)]
     instargs: Vec<String>,
 
-    /// Runtime log-level
+    /// Log-level within the Wasm engine
     #[arg(short, long, default_value_t = LOG_LEVEL_WARNING)]
     verbose: log_level_t,
 
@@ -62,13 +61,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         .format_timestamp_millis()
         .init();
 
-        //.filter_level(log::LevelFilter::Info)
     let cli = CLI::parse();
     print_cli(&cli);
+
+    // Read wasm file, compute its digest
     let infile = cli.input_command[0].as_str();
     let contents = fs::read(infile)?;
-    let args: Vec<&str> = cli.instargs.iter().map(|s| s.as_str()).collect();
+    let sha256_infile = digest(&contents);
 
+    let args: Vec<&str> = cli.instargs.iter().map(|s| s.as_str()).collect();
     let inst_module: &[u8] = instrument_module(contents, cli.scheme.as_str(), &args[..])?;
     if let Some(instfile) = cli.instfile {
         info!("Writing module to {}", instfile);
@@ -91,7 +92,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     info!("Successful execution of wasm");
 
-    dump_global_trace(&cli.outfile)?;
+    dump_global_trace(&cli.outfile, sha256_infile.as_str())?;
     info!("Dumped trace to {}", cli.outfile);
 
     destroy_instrument_module(inst_module);

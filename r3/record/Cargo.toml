@@ -4,16 +4,18 @@ edition = "2021"
 authors.workspace = true
 version.workspace = true
 license.workspace = true
-build = "../build.rs"
+
+[[bin]]
+path = "src/record.rs"
+name = "record"
 
 [dependencies]
 clap.workspace = true
 env_logger.workspace = true
 libc.workspace = true
 log.workspace = true
-postcard.workspace = true
-serde.workspace = true
 wamr-rust-sdk.workspace = true
+sha256.workspace = true
 common = { path = "../common" }
 
 [build-dependencies]

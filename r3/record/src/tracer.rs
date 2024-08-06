@@ -1,67 +1,13 @@
-use log::{debug, info, warn};
-use std::fmt;
+use log::{debug, warn};
+use std::io::{self, Write};
 use std::fs::File;
-use std::io::{self, Read, Write};
 use std::sync::{LazyLock, Mutex};
-use serde::{Serialize, Deserialize};
-use postcard;
 use wamr_rust_sdk::wasm_exec_env_t;
 use libc::gettid;
 
+use common::trace::*;
+
 pub static GLOBAL_TRACE: LazyLock<Mutex<Vec<TraceOp>>> = LazyLock::new(|| Mutex::new(vec![]));
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub enum CallID {
-    ScUnknown,
-    ScMmap { grow: i32 },
-    ScWritev { fd: i32, iov: i32, iovcnt: i32 },
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct Access {
-    access_idx: i32,
-    opcode: i32,
-    addr: i32,
-    size: i32,
-    load_value: i64,
-    expected_value: i64,
-}
-impl fmt::Display for Access {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Access [{} | {:#04X}] @ Addr [{:6}::{}] with Read [{:#0vwidth$X}] ==/== [{:#0vwidth$X}]", 
-            self.access_idx, self.opcode, self.addr, self.size, self.load_value, self.expected_value, vwidth = (self.size as usize * 2)+2)
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct Call {
-    access_idx: i32,
-    opcode: i32,
-    func_idx: i32,
-    call_id: CallID,
-}
-impl fmt::Display for Call {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Call [{:6} | {:#6X}] for [{:?} | {:3}]", 
-            self.access_idx, self.opcode, self.call_id, self.func_idx)
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub enum TraceOp {
-    MemOp(Access),
-    CallOp(Call)
-}
-
-/* Convert engine-level CallID to Rust Enum */
-fn create_call_id(call_id: i32, args: (i32, i32, i32)) -> Option<CallID> {
-    match call_id {
-        0 => Some(CallID::ScUnknown),
-        1 => Some(CallID::ScMmap { grow: args.0 }),
-        2 => Some(CallID::ScWritev { fd: args.0, iov: args.1, iovcnt: args.2 }),
-        _ => None,
-    }
-}
 
 /* Record Op to global trace */
 fn add_to_global_trace(op: TraceOp) {
@@ -69,15 +15,19 @@ fn add_to_global_trace(op: TraceOp) {
     trace.push(op);
 }
 
-pub fn dump_global_trace(tracefile: &String) -> io::Result<()>{
+pub fn dump_global_trace(tracefile: &String, sha256: &str) -> io::Result<()>{
     let mut file = File::create(tracefile)?;
     let trace = GLOBAL_TRACE.lock().unwrap();
-    let ser: Vec<u8> = postcard::to_stdvec(&*trace).unwrap();
+    let trace_data = TraceDataSer {
+        sha256: sha256,
+        trace: &*trace,
+    };
+    let ser = trace_data.serialize();
     file.write_all(&ser)?;
 
     /* Verify serialization can be effectively deserialized */
-    let deserialized: Vec<TraceOp> = postcard::from_bytes(&ser).unwrap();
-    assert_eq!(*trace, deserialized);
+    let deserialized = TraceDataDeser::deserialize(&ser, None);
+    assert_eq!(*trace, deserialized.trace);
     Ok(())
 }
 

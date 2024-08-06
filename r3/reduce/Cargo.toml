@@ -5,4 +5,9 @@ authors.workspace = true
 version.workspace = true
 license.workspace = true
 
+[[bin]]
+path = "src/reduce.rs"
+name = "reduce"
+
 [dependencies]
+sha256.workspace = true

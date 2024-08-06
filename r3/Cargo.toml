@@ -7,8 +7,6 @@ authors = ["Arjun Ramesh <arjunr2@andrew.cmu.edu>"]
 version = "0.1.0"
 license = "MIT"
 
-#build = "build.rs"
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace.dependencies]
@@ -18,6 +16,7 @@ libc = "0.2.153"
 log = "0.4.21"
 postcard = { version = "1.0.8", features = ["use-std"] }
 serde = "1.0.204"
+sha256 = "1.5.0"
 wamr-rust-sdk = { git = "https://github.com/arjunr2/wamr-rust-sdk.git" }
 #wamr-rust-sdk = { path = "../../wamr-rust-sdk" }
 

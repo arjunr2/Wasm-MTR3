@@ -5,4 +5,18 @@ authors.workspace = true
 version.workspace = true
 license.workspace = true
 
+[[bin]]
+path = "src/replay.rs"
+name = "replay"
+
 [dependencies]
+clap.workspace = true
+env_logger.workspace = true
+libc.workspace = true
+log.workspace = true
+sha256.workspace = true
+common = { path = "../common" }
+
+[build-dependencies]
+bindgen.workspace = true
+cmake.workspace = true
