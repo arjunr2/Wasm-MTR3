@@ -1,4 +1,4 @@
-use libc::{c_char};
+use libc::{c_char, c_void};
 
 use std::ffi::CString;
 use std::slice;
@@ -13,6 +13,10 @@ extern {
     fn destroy_file_buf(buf: *const c_char) -> ();
 }
 
+pub enum InstrumentArgs<'a> {
+    Generic(&'a [&'a str]),
+    AnonArr(*const c_void, i32)
+}
 
 pub fn instrument_module(contents: Vec<u8>, routine: &str, args: &[&str]) -> Result<&'static [u8], Box<dyn Error>> {
     let c_routine = CString::new(routine)?;

@@ -47,13 +47,13 @@ pub extern "C" fn wasm_memop_tracedump(_exec_env: wasm_exec_env_t, differ: i32, 
 
 /* Wasm Engine Hook: Records CallOps */
 pub extern "C" fn wasm_call_tracedump(_exec_env: wasm_exec_env_t, access_idx: i32, opcode: i32, func_idx: i32, 
-        call_id: i32, a1: i64, a2: i64, a3: i64) {
+        call_id: i32, return_val: i64, a1: i64, a2: i64, a3: i64) {
     if opcode != 0x10 {
         warn!("[{} | {:#04X}] Unexpected opcode", access_idx, opcode);
     }
     let tidval = unsafe { gettid() };
-    let call_id = create_call_id(call_id, (a1 as i32, a2 as i32, a3 as i32)).unwrap();
-    let call_trace = Call { access_idx, opcode, func_idx, call_id };
+    let call_id = create_call_id(call_id, [a1 as i32, a2 as i32, a3 as i32]).unwrap();
+    let call_trace = Call { access_idx, opcode, func_idx, return_val, call_id };
     debug!("[{}] [Trace CALL] {}", tidval, call_trace); 
     /* Add to trace here */
     add_to_global_trace(TraceOp::CallOp(call_trace));
