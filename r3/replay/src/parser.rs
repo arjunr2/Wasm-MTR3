@@ -7,7 +7,7 @@ use common::trace::*;
 
 use crate::structs::*;
 
-pub fn dump_replay_ops(replay: &BTreeMap<i32, ReplayOp>, outfile: &str) -> Result<(), io::Error> {
+pub fn dump_replay_ops(replay: &BTreeMap<u32, ReplayOp>, outfile: &str) -> Result<(), io::Error> {
     let mut file = File::create(outfile)?;
     for (_access_idx, op) in replay {
         writeln!(file, "{}", op)?;
@@ -16,7 +16,7 @@ pub fn dump_replay_ops(replay: &BTreeMap<i32, ReplayOp>, outfile: &str) -> Resul
     Ok(())
 }
 
-fn append_vecd_to_map(map: &mut BTreeMap<i32, ReplayOp>, vecd: &mut VecDeque<ReplayOpSingle>) {
+fn append_vecd_to_map(map: &mut BTreeMap<u32, ReplayOp>, vecd: &mut VecDeque<ReplayOpSingle>) {
     while let Some(call) = vecd.pop_front() {
         // If we see a repeated access_idx, append stores/returns
         if let Some(ref mut replay_op) = map.get_mut(&call.access_idx) {
@@ -36,8 +36,8 @@ fn append_vecd_to_map(map: &mut BTreeMap<i32, ReplayOp>, vecd: &mut VecDeque<Rep
 /// replay generator
 /// RelayOps have their operations stored in trace-observed order
 /// i.e if n happened before m in the trace, then op_idx(n) < op_idx(m)
-pub fn construct_replay_ops(trace: &Vec<TraceOp>) -> BTreeMap<i32, ReplayOp> {
-    let mut replay: BTreeMap<i32, ReplayOp> = BTreeMap::new();
+pub fn construct_replay_ops(trace: &Vec<TraceOp>) -> BTreeMap<u32, ReplayOp> {
+    let mut replay: BTreeMap<u32, ReplayOp> = BTreeMap::new();
 
     let mut queued_seq_calls: VecDeque<ReplayOpSingle> = VecDeque::new();
 

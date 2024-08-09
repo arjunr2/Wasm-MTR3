@@ -14,7 +14,8 @@ use wamr_rust_sdk::{
     LOG_LEVEL_WARNING
 };
 
-use common::instrument::{instrument_module, destroy_instrument_module};
+use common::instrument::{InstrumentArgs, instrument_module, 
+    destroy_instrument_module};
 
 mod tracer;
 use tracer::{wasm_memop_tracedump, wasm_call_tracedump, dump_global_trace};
@@ -70,7 +71,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let sha256_infile = digest(&contents);
 
     let args: Vec<&str> = cli.instargs.iter().map(|s| s.as_str()).collect();
-    let inst_module: &[u8] = instrument_module(contents, cli.scheme.as_str(), &args[..])?;
+    let inst_module: &[u8] = instrument_module(&contents, cli.scheme.as_str(), InstrumentArgs::Generic(&args[..]))?;
     if let Some(instfile) = cli.instfile {
         info!("Writing module to {}", instfile);
         fs::write(instfile, inst_module)?;

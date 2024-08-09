@@ -28,7 +28,7 @@ struct CLI {
 
     /// Deserialized debug output file
     #[arg(short, long)]
-    debugfile: Option<String>,
+    deserfile: Option<String>,
 
     /// Transformed replay operations output file
     #[arg(short, long)]
@@ -45,15 +45,15 @@ fn print_cli(cli: &CLI) {
     info!("Outfile: {:?}", cli.outfile);
 }
 
-pub fn dump_deserialized(deserialized: &TraceDataDeser, debugfile: &str) -> Result<(), io::Error> {
-    let mut file = fs::File::create(debugfile)?;
+pub fn dump_deserialized(deserialized: &TraceDataDeser, deserfile: &str) -> Result<(), io::Error> {
+    let mut file = fs::File::create(deserfile)?;
     for traceop in deserialized.trace.iter() {
         match traceop {
             TraceOp::MemOp(access) => writeln!(file, "{}", access)?,
             TraceOp::CallOp(call) => writeln!(file, "{}", call)?
         }
     }
-    info!("Deserialized output written to {}", debugfile);
+    info!("Deserialized output written to {}", deserfile);
     Ok(())
 }
 
@@ -74,8 +74,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let deserialized = TraceDataDeser::deserialize(&tracebin,
          Some(sha256_wasm.as_str()));
 
-    if let Some(debugfile) = cli.debugfile {
-        dump_deserialized(&deserialized, debugfile.as_str())?;
+    if let Some(deserfile) = cli.deserfile {
+        dump_deserialized(&deserialized, deserfile.as_str())?;
     }
 
     let replay_ops = construct_replay_ops(&deserialized.trace);

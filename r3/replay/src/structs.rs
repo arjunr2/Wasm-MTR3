@@ -6,7 +6,7 @@ use common::trace::{CallID};
 #[derive(Debug, Clone)]
 pub struct ReplayMemStore {
     pub addr: i32,
-    pub size: i32,
+    pub size: u32,
     pub value: i64,
 }
 
@@ -25,22 +25,31 @@ impl fmt::Display for ReplayOpProp {
 
 #[derive(Debug, Clone)]
 pub struct ReplayOpSingle {
-    pub access_idx: i32,
-    pub func_idx: i32,
+    pub access_idx: u32,
+    pub func_idx: u32,
     pub prop: ReplayOpProp,
 }
 
 /// A replay operation that aggregates single operation
 #[derive(Debug, Clone)]
 pub struct ReplayOp {
-    pub access_idx: i32,
-    pub func_idx: i32,
+    pub access_idx: u32,
+    pub func_idx: u32,
     pub props: Vec<ReplayOpProp>
+}
+impl ReplayOp {
+    pub fn total_stores(&self) -> usize {
+        let mut total_stores = 0;
+        for prop in &self.props {
+            total_stores += prop.stores.len();
+        }
+        total_stores
+    }
 }
 impl fmt::Display for ReplayOp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ReplayOp [{:6} | {:3}] with {:?}", 
-            self.access_idx, self.func_idx, self.props)
+        write!(f, "ReplayOp [{:6} | {:3}] with PropOp[{}](stores: {})", 
+            self.access_idx, self.func_idx, self.props.len(), self.total_stores())
     }
 }
 
@@ -50,17 +59,33 @@ impl fmt::Display for ReplayOp {
 #[derive(Debug)]
 pub struct ReplayOpPropCFFI {
     pub return_val: i64,
-    pub call_id: i32,
-    pub call_args: [i32; 3],
+    pub call_id: u32,
+    pub call_args: [i64; 3],
     pub stores : *const ReplayMemStore,
-    pub stores_len: i32,
+    pub num_stores: u32,
 }
 
 #[repr(C)]
 #[derive(Debug)]
 pub struct ReplayOpCFFI {
-    pub access_idx: i32,
-    pub func_idx: i32,
+    pub access_idx: u32,
+    pub func_idx: u32,
     pub props: *const ReplayOpPropCFFI,
-    pub props_len: i32,
+    pub num_props: u32,
+}
+impl ReplayOpCFFI {
+    pub fn total_stores(&self) -> usize {
+        let mut total_stores = 0;
+        for i in 0..self.num_props as usize {
+            let prop = unsafe { &*self.props.offset(i as isize) };
+            total_stores += prop.num_stores as usize;
+        }
+        total_stores
+    }
+}
+impl fmt::Display for ReplayOpCFFI {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ReplayOp [{:6} | {:3}] with PropOp[{}](stores: {})", 
+            self.access_idx, self.func_idx, self.num_props, self.total_stores())
+    }
 }
