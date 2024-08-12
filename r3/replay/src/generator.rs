@@ -2,6 +2,8 @@ use log::{debug, info};
 use std::error::{Error};
 use libc::{c_void};
 use std::mem::ManuallyDrop;
+use std::fs::File;
+use std::io::{Write};
 
 use crate::structs::*;
 
@@ -54,12 +56,18 @@ pub fn generate_replay_file(replay_ops: &BTreeMap<u32, ReplayOp>, wasmbin: &Vec<
     for op in &ffi_ops {
         debug!("{}", op);
     }
-    info!("Generating replay file {}", outfile);
-    let inst_module: &[u8] = instrument_module(wasmbin, "r3-replay-generator", InstrumentArgs::AnonArr(ffi_ops.as_ptr() as *const c_void, ffi_ops.len() as u32))?;
+    info!("Generating replay file from input wasm binary");
+    let replay_module: &[u8] = instrument_module(wasmbin, "r3-replay-generator", InstrumentArgs::AnonArr(ffi_ops.as_ptr() as *const c_void, ffi_ops.len() as u32))?;
     // Drop the manually managed C FFI replay-op data
     unsafe {
         ManuallyDrop::drop(&mut ffi_manual_drop);
     }
-    destroy_instrument_module(inst_module);
+
+    // Write the instrumented module to file
+    let mut file = File::create(outfile)?;
+    file.write_all(replay_module)?;
+    info!("Wrote replay file to {}", outfile);
+
+    destroy_instrument_module(replay_module);
     Ok(())
 }

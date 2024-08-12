@@ -23,7 +23,7 @@ struct CLI {
     tracefile: String,
 
     /// Output (modified) Wasm replay file
-    #[arg(short, long, default_value_t = String::from("replay.r3"))]
+    #[arg(short, long, default_value_t = String::from("replay.wasm"))]
     outfile: String,
 
     /// Deserialized debug output file
