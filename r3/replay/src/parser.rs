@@ -12,7 +12,7 @@ pub fn dump_replay_ops(replay: &BTreeMap<u32, ReplayOp>, outfile: &str) -> Resul
     for (_access_idx, op) in replay {
         writeln!(file, "{}", op)?;
     }
-    info!("Replay output written to {}", outfile);
+    info!("Replay operation log written to {}", outfile);
     Ok(())
 }
 
