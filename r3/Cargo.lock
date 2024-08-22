@@ -647,6 +647,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "runner"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "common",
+ "env_logger",
+ "libc",
+ "log",
+ "wamr-rust-sdk",
+]
+
+[[package]]
 name = "rustc-demangle"
 version = "0.1.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -812,7 +824,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "wamr-rust-sdk"
 version = "0.1.0"
-source = "git+https://github.com/arjunr2/wamr-rust-sdk.git#de63fc70f5ae86fe7767206ea0ecdd48cba248b7"
+source = "git+https://github.com/arjunr2/wamr-rust-sdk.git#39089034b38599ee07c8239904817629430b62c8"
 dependencies = [
  "wamr-sys",
 ]
@@ -820,7 +832,7 @@ dependencies = [
 [[package]]
 name = "wamr-sys"
 version = "0.1.0"
-source = "git+https://github.com/arjunr2/wamr-rust-sdk.git#de63fc70f5ae86fe7767206ea0ecdd48cba248b7"
+source = "git+https://github.com/arjunr2/wamr-rust-sdk.git#39089034b38599ee07c8239904817629430b62c8"
 dependencies = [
  "bindgen",
  "cc",

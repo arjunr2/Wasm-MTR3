@@ -1,4 +1,5 @@
-use log::{debug, warn};
+use log::{debug, warn, log_enabled};
+use log::Level::Trace;
 use std::io::{self, Write};
 use std::fs::File;
 use std::sync::{LazyLock, Mutex};
@@ -6,6 +7,7 @@ use wamr_rust_sdk::wasm_exec_env_t;
 use libc::gettid;
 
 use common::trace::*;
+use common::wasm2native::*;
 
 pub static GLOBAL_TRACE: LazyLock<Mutex<Vec<TraceOp>>> = LazyLock::new(|| Mutex::new(vec![]));
 
@@ -46,7 +48,7 @@ pub extern "C" fn wasm_memop_tracedump(_exec_env: wasm_exec_env_t, differ: i32, 
 }
 
 /* Wasm Engine Hook: Records CallOps */
-pub extern "C" fn wasm_call_tracedump(_exec_env: wasm_exec_env_t, access_idx: u32, opcode: i32, func_idx: u32, 
+pub extern "C" fn wasm_call_tracedump(exec_env: wasm_exec_env_t, access_idx: u32, opcode: i32, func_idx: u32, 
         call_id: u32, return_val: i64, a1: i64, a2: i64, a3: i64) {
     if opcode != 0x10 {
         warn!("[{} | {:#04X}] Unexpected opcode", access_idx, opcode);
@@ -55,6 +57,13 @@ pub extern "C" fn wasm_call_tracedump(_exec_env: wasm_exec_env_t, access_idx: u3
     let call_id = create_call_id(call_id, [a1, a2, a3]).unwrap();
     let call_trace = Call { access_idx, opcode, func_idx, return_val, call_id };
     debug!("[{}] [Trace CALL] {}", tidval, call_trace); 
+    if log_enabled!(Trace) {
+        if let CallID::ScWritev {fd: _, iov, iovcnt} = call_id {
+            let _ = unsafe {
+                get_native_iovec_from_wali(exec_env, iov as WasmAddr, iovcnt as i32);
+            };
+        }
+    }
     /* Add to trace here */
     add_to_global_trace(TraceOp::CallOp(call_trace));
 }
