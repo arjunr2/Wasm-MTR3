@@ -21,6 +21,7 @@ echo ""
 
 # Generate replay binary
 RUST_LOG=info ./target/debug/replay -o $replayprefix.wasm -w $wasmmod -d $replayprefix.out
+wasm2wat --enable-threads $replayprefix.wasm -o $replayprefix.wat
 echo ""
 
 # Run replay binary
