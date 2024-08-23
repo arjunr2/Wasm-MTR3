@@ -51,13 +51,20 @@ fn generate_ffi_ops(replay_ops: &BTreeMap<u32, ReplayOp>) ->
     (ffi_ops, ffi_manual_drop)
 }
 
-pub fn generate_replay_file(replay_ops: &BTreeMap<u32, ReplayOp>, wasmbin: &Vec<u8>, outfile: &str) -> Result<(), Box<dyn Error>> {
+pub fn generate_replay_file(replay_ops: &BTreeMap<u32, ReplayOp>, 
+        wasmbin: &Vec<u8>, 
+        outfile: &str,
+        debug: bool) -> Result<(), Box<dyn Error>> {
     let (ffi_ops, mut ffi_manual_drop) = generate_ffi_ops(replay_ops);
     for op in &ffi_ops {
         debug!("{}", op);
     }
     info!("Generating replay file from input wasm binary");
-    let replay_module: &[u8] = instrument_module(wasmbin, "r3-replay-generator", InstrumentArgs::AnonArr(ffi_ops.as_ptr() as *const c_void, ffi_ops.len() as u32))?;
+    let replay_module: &[u8] = instrument_module(wasmbin, "r3-replay-generator", 
+        InstrumentArgs::AnonArr(
+            ffi_ops.as_ptr() as *const c_void, 
+            ffi_ops.len() as u32,
+            debug as i64))?;
     // Drop the manually managed C FFI replay-op data
     unsafe {
         ManuallyDrop::drop(&mut ffi_manual_drop);

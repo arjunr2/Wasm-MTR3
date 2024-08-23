@@ -27,8 +27,12 @@ struct CLI {
     outfile: String,
 
     /// Deserialized debug output file
-    #[arg(short, long)]
+    #[arg(short = 'f', long)]
     deserfile: Option<String>,
+
+    /// Enable debug calls within generated replay file
+    #[arg(short, long)]
+    debug: bool,
 
     /// Transformed replay operations output file
     #[arg(short, long)]
@@ -42,6 +46,7 @@ struct CLI {
 fn print_cli(cli: &CLI) {
     info!("Wasmfile: {:?}", cli.wasmfile);
     info!("Tracefile: {:?}", cli.tracefile);
+    info!("Generate Debug: {:?}", cli.debug);
     info!("Outfile: {:?}", cli.outfile);
 }
 
@@ -83,7 +88,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         dump_replay_ops(&replay_ops, replayfile.as_str()).unwrap();
     }
 
-    generate_replay_file(&replay_ops, &wasmbin, &cli.outfile)?; 
+    generate_replay_file(&replay_ops, &wasmbin, &cli.outfile, cli.debug)?; 
 
     Ok(())
 }

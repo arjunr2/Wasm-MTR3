@@ -20,7 +20,7 @@ wasm2wat --enable-threads --enable-multi-memory $instprefix.wasm -o $instprefix.
 echo ""
 
 # Generate replay binary
-RUST_LOG=info ./target/debug/replay -o $replayprefix.wasm -w $wasmmod -d $replayprefix.out
+RUST_LOG=info ./target/debug/replay -o $replayprefix.wasm -w $wasmmod -f $replayprefix.out -d
 wasm2wat --enable-threads $replayprefix.wasm -o $replayprefix.wat
 echo ""
 
