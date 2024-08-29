@@ -1,8 +1,11 @@
-use log::{info};
+use log::{info, warn};
 use clap::Parser;
 use std::fs;
+use std::process;
 use libc::c_void;
 use std::error::{Error};
+use nix::unistd::{fork, ForkResult};
+use nix::sys::wait::{waitpid, WaitStatus};
 
 use wamr_rust_sdk::{
     runtime::Runtime, module::Module, instance::Instance,
@@ -44,21 +47,36 @@ fn main() -> Result<(), Box<dyn Error>> {
     let infile = cli.input_command[0].as_str();
     let wasm_module = fs::read(infile)?;
 
-    /* WAMR Instantiate and Run */
-    let runtime = Runtime::builder()
-        .use_system_allocator()
-        .set_host_function_module_name("r3-replay")
-        .register_host_function("SC_proc_exit", wasm_r3_replay_proc_exit as *mut c_void)
-        .register_host_function("SC_writev", wasm_r3_replay_writev as *mut c_void)
-        .set_max_thread_num(100)
-        .build()?;
-    runtime.set_log_level(cli.verbose);
-    let module = Module::from_buf(&runtime, &wasm_module[..], infile)?;
-    let instance = Instance::new(&runtime, &module, 1024 * 256)?;
+    match unsafe { fork() }? {
+        ForkResult::Child => {
+            info!("Wasm engine executing with PID: {}", process::id());
+            /* WAMR Instantiate and Run */
+            let runtime = Runtime::builder()
+                .use_system_allocator()
+                .set_host_function_module_name("r3-replay")
+                .register_host_function("SC_proc_exit", wasm_r3_replay_proc_exit as *mut c_void)
+                .register_host_function("SC_writev", wasm_r3_replay_writev as *mut c_void)
+                .set_max_thread_num(100)
+                .build()?;
+            runtime.set_log_level(cli.verbose);
+            let module = Module::from_buf(&runtime, &wasm_module[..], infile)?;
+            let instance = Instance::new(&runtime, &module, 1024 * 256)?;
 
-    let _ = instance.execute_main(&cli.input_command)?;
-
-    info!("Finished execution of Wasm file");
+            let _ = instance.execute_main(&cli.input_command)?;
+            info!("Wasm module safely exited from child process");
+            process::exit(0);
+        }
+        ForkResult::Parent { child } => {
+            match waitpid(child, None)? {
+                WaitStatus::Exited(pid, status) => {
+                    info!("Wasm engine (PID: {}) exited with status: {}", pid, status);
+                }
+                status => {
+                    warn!("Wasm engine exited with bad status: {:?}", status);
+                }
+            }
+        }
+    }
 
     return Ok(());
 }

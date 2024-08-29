@@ -10,5 +10,7 @@ clap.workspace = true
 env_logger.workspace = true
 libc.workspace = true
 log.workspace = true
+postcard.workspace = true
+nix.workspace = true
 wamr-rust-sdk.workspace = true
 common = { path = "../common" }

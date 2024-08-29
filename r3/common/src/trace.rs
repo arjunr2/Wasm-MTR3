@@ -51,29 +51,21 @@ pub enum TraceOp {
     CallOp(Call)
 }
 
-#[derive(Debug, Serialize, PartialEq)]
-pub struct TraceDataSer<'a> {
-    pub sha256: &'a str,
-    pub trace: &'a Vec<TraceOp>,
-}
-impl TraceDataSer<'_> {
-    pub fn serialize(&self) -> Vec<u8> {
-        postcard::to_stdvec(&self).unwrap()
-    }
-}
-
-#[derive(Debug, Deserialize, PartialEq)]
-pub struct TraceDataDeser<'a> {
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct TraceData<'a> {
     pub sha256: &'a str,
     pub trace: Vec<TraceOp>,
 }
-impl<'a> TraceDataDeser<'a> {
+impl<'a> TraceData<'a> {
     pub fn deserialize(ser: &'a Vec<u8>, sha256: Option<&str>) -> Self {
         let deser: Self = postcard::from_bytes(ser).unwrap();
         if let Some(digest) = sha256 {
             assert_eq!(digest, deser.sha256, "SHA256 mismatch between trace and expected");
         }
         deser
+    }
+    pub fn serialize(&self) -> Vec<u8> {
+        postcard::to_stdvec(&self).unwrap()
     }
 }
 

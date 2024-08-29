@@ -1,2 +1,5 @@
 target
 *.r3
+*.wasm
+*.wat
+*.out

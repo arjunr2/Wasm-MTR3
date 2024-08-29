@@ -1,37 +1,75 @@
-use log::{debug, warn, log_enabled};
+use log::{debug, warn, info, log_enabled};
 use log::Level::Trace;
-use std::io::{self, Write};
-use std::fs::File;
+use std::io::{self, Write, Seek};
+use std::fs::{File, remove_file};
 use std::sync::{LazyLock, Mutex};
+use std::path::PathBuf;
 use wamr_rust_sdk::wasm_exec_env_t;
 use libc::gettid;
+use tempfile::{env};
+use postcard;
+use uuid::Uuid;
+use once_cell::sync::Lazy;
 
 use common::trace::*;
 use common::wasm2native::*;
 
-pub static GLOBAL_TRACE: LazyLock<Mutex<Vec<TraceOp>>> = LazyLock::new(|| Mutex::new(vec![]));
+static TMP_FILEPATH: Lazy<PathBuf> = Lazy::new(|| {
+    let mut temppath = env::temp_dir();
+    temppath.push(Uuid::new_v4().to_string());
+    info!("Intermediate tracefile: {:?}", temppath);
+    temppath
+});
+
+/* Used by Wasm engine to log TraceOps */
+pub static TRACEOP_FILE: LazyLock<Mutex<File>> = LazyLock::new(|| {
+    Mutex::new(File::create(&*TMP_FILEPATH).unwrap())
+});
+
+/* Initialize the temporary file name (UUID) */
+pub fn initialize_tmpfile_name() {
+    let _ = &*TMP_FILEPATH;
+}
 
 /* Record Op to global trace */
-fn add_to_global_trace(op: TraceOp) {
-    let mut trace = GLOBAL_TRACE.lock().unwrap();
-    trace.push(op);
+fn append_traceop(op: TraceOp) {
+    let file = &mut *(TRACEOP_FILE.lock().unwrap());
+    postcard::to_io(&op, file).unwrap();
 }
 
+fn is_at_eof(mut file: &File) -> io::Result<bool> {
+    let current_pos = file.stream_position()?;
+    let file_len = file.metadata()?.len();
+    Ok(current_pos == file_len)
+}    
+
+/* Read the traceops from the tmpfile, and generate finalized trace data */
 pub fn dump_global_trace(tracefile: &String, sha256: &str) -> io::Result<()>{
-    let mut file = File::create(tracefile)?;
-    let trace = GLOBAL_TRACE.lock().unwrap();
-    let trace_data = TraceDataSer {
+    let mut dumpfile = File::create(tracefile)?;
+    let traceop_file = File::open(&*TMP_FILEPATH)?;
+    let mut trace_data = TraceData {
         sha256: sha256,
-        trace: &*trace,
+        trace: vec![],
     };
+
+    /* Read each traceop from the intermediate file and convert to final trace format*/
+    while !is_at_eof(&traceop_file)? {
+        let top = postcard::from_io((&traceop_file, &mut [0; 0])).unwrap();
+        trace_data.trace.push(top.0);
+    }
     let ser = trace_data.serialize();
-    file.write_all(&ser)?;
+    dumpfile.write_all(&ser)?;
+
+    /* Cleanup the temporary file */
+    remove_file(&*TMP_FILEPATH)?;
 
     /* Verify serialization can be effectively deserialized */
-    let deserialized = TraceDataDeser::deserialize(&ser, None);
-    assert_eq!(*trace, deserialized.trace);
+    let deserialized = TraceData::deserialize(&ser, None);
+    assert_eq!(*trace_data.trace, deserialized.trace);
     Ok(())
 }
+
+
 
 /* Wasm Engine Hook: Records MemOps */
 pub extern "C" fn wasm_memop_tracedump(_exec_env: wasm_exec_env_t, differ: i32, access_idx: u32, opcode: i32, addr: i32, size: u32, load_value: i64, expected_value: i64) {
@@ -43,7 +81,7 @@ pub extern "C" fn wasm_memop_tracedump(_exec_env: wasm_exec_env_t, differ: i32, 
         let access = Access { access_idx, opcode, addr, size, load_value, expected_value };
         debug!("[{}] [Trace MEMOP] {} | Diff? {}", tidval, access, differ);
         /* Add to trace here */
-        add_to_global_trace(TraceOp::MemOp(access));
+        append_traceop(TraceOp::MemOp(access));
     }
 }
 
@@ -65,5 +103,5 @@ pub extern "C" fn wasm_call_tracedump(exec_env: wasm_exec_env_t, access_idx: u32
         }
     }
     /* Add to trace here */
-    add_to_global_trace(TraceOp::CallOp(call_trace));
+    append_traceop(TraceOp::CallOp(call_trace));
 }

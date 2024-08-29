@@ -16,7 +16,12 @@ libc.workspace = true
 log.workspace = true
 wamr-rust-sdk.workspace = true
 sha256.workspace = true
+nix.workspace = true
+postcard.workspace = true
 common = { path = "../common" }
+tempfile = "3.12.0"
+uuid = { version = "1.10.0", features = ["v4"] }
+once_cell = "1.19.0"
 
 [build-dependencies]
 bindgen.workspace = true

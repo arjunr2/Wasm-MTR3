@@ -50,7 +50,7 @@ fn print_cli(cli: &CLI) {
     info!("Outfile: {:?}", cli.outfile);
 }
 
-pub fn dump_deserialized(deserialized: &TraceDataDeser, deserfile: &str) -> Result<(), io::Error> {
+pub fn dump_deserialized(deserialized: &TraceData, deserfile: &str) -> Result<(), io::Error> {
     let mut file = fs::File::create(deserfile)?;
     for traceop in deserialized.trace.iter() {
         match traceop {
@@ -76,7 +76,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Read trace file
     let tracebin = fs::read(cli.tracefile.as_str())?;
 
-    let deserialized = TraceDataDeser::deserialize(&tracebin,
+    let deserialized = TraceData::deserialize(&tracebin,
          Some(sha256_wasm.as_str()));
 
     if let Some(deserfile) = cli.deserfile {
