@@ -9,8 +9,8 @@ pub enum CallID {
     ScWritev { fd: i32, iov: i32, iovcnt: u32 },
     ScThreadSpawn,
     ScFutex,
-    ScExit,
-    ScProcExit,
+    ScThreadExit { status: i32 },
+    ScProcExit { status: i32 },
     ScGeneric,
 }
 
@@ -77,9 +77,9 @@ pub fn create_call_id(call_id: u32, args: [i64;3]) -> Option<CallID> {
         2 => Some(CallID::ScWritev { fd: args[0] as i32, iov: args[1] as i32, iovcnt: args[2] as u32 }),
         3 => Some(CallID::ScThreadSpawn),
         4 => Some(CallID::ScFutex),
-        5 => Some(CallID::ScExit),
-        6 => Some(CallID::ScProcExit),
-        7 => Some(CallID::ScGeneric),
+        5 => Some(CallID::ScThreadExit { status: args[0] as i32 }),
+        6 => Some(CallID::ScProcExit { status: args[0] as i32 }),
+        0xFFFFFFFF => Some(CallID::ScGeneric),
         _ => None,
     }
 }
@@ -94,8 +94,8 @@ pub fn get_instrumentation_call_id(call_id: &CallID) -> (u32, [i64;3]) {
         CallID::ScWritev { fd, iov, iovcnt } => (2, [*fd as i64, *iov as i64, *iovcnt as i64]),
         CallID::ScThreadSpawn => (3, [0, 0, 0]),
         CallID::ScFutex => (4, [0, 0, 0]),
-        CallID::ScExit => (5, [0, 0, 0]),
-        CallID::ScProcExit => (6, [0, 0, 0]),
-        CallID::ScGeneric => (7, [0, 0, 0]),
+        CallID::ScThreadExit { status } => (5, [*status as i64, 0, 0]),
+        CallID::ScProcExit { status } => (6, [*status as i64, 0, 0]),
+        CallID::ScGeneric => (0xFFFFFFFF, [0, 0, 0]),
     }
 }
