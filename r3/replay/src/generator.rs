@@ -7,7 +7,6 @@ use std::io::{Write};
 
 use crate::structs::*;
 
-use common::trace::{get_instrumentation_call_id};
 use common::instrument::{InstrumentArgs, instrument_module, destroy_instrument_module};
 
 use std::collections::BTreeMap;
@@ -30,7 +29,7 @@ fn generate_ffi_ops(replay_ops: &BTreeMap<u32, ReplayOp>) ->
         {
             let ffi_props: &mut Vec<ReplayOpPropCFFI> = ffi_manual_drop.ffi_props_all.last_mut().unwrap();
             for prop in &op.props {
-                let (ffi_call_id, ffi_call_args) = get_instrumentation_call_id(&prop.call_id);
+                let (ffi_call_id, ffi_call_args) = prop.call_id.to_parts();
                 ffi_props.push(ReplayOpPropCFFI {
                     return_val: prop.return_val,
                     call_id: ffi_call_id,

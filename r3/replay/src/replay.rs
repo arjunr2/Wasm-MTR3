@@ -55,7 +55,8 @@ pub fn dump_deserialized(deserialized: &TraceData, deserfile: &str) -> Result<()
     for traceop in deserialized.trace.iter() {
         match traceop {
             TraceOp::MemOp(access) => writeln!(file, "{}", access)?,
-            TraceOp::CallOp(call) => writeln!(file, "{}", call)?
+            TraceOp::CallOp(call) => writeln!(file, "{}", call)?,
+            TraceOp::ContextSwitchOp(ctx) => writeln!(file, "{}", ctx)?
         }
     }
     info!("Deserialized output written to {}", deserfile);

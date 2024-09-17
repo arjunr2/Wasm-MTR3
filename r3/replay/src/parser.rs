@@ -77,6 +77,9 @@ pub fn construct_replay_ops(trace: &Vec<TraceOp>) -> BTreeMap<u32, ReplayOp> {
                     panic!("No previous call to map access to in trace");
                 }
             }
+            TraceOp::ContextSwitchOp(_) => {
+                debug!("Got context switch op");
+            }
         }
     };
 

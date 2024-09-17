@@ -2,7 +2,7 @@ use log::{debug, warn, info, log_enabled};
 use log::Level::Trace;
 use std::io::{self, Write, Seek};
 use std::fs::{File, remove_file};
-use std::sync::{LazyLock, Mutex};
+use std::sync::{LazyLock, Mutex, atomic::{AtomicI32, Ordering}};
 use std::path::PathBuf;
 use wamr_rust_sdk::wasm_exec_env_t;
 use libc::gettid;
@@ -13,6 +13,8 @@ use once_cell::sync::Lazy;
 
 use common::trace::*;
 use common::wasm2native::*;
+
+static LAST_TID: AtomicI32 = AtomicI32::new(0);
 
 static TMP_FILEPATH: Lazy<PathBuf> = Lazy::new(|| {
     let mut temppath = env::temp_dir();
@@ -70,6 +72,17 @@ pub fn dump_global_trace(tracefile: &String, sha256: &str) -> io::Result<()>{
 }
 
 
+/* Record context switch operations, if any */
+#[inline(always)]
+fn check_context_switch(tidval: i32) {
+    let old_tidval = LAST_TID.swap(tidval, Ordering::Relaxed);
+    if (old_tidval != tidval) && (old_tidval != 0) {
+        debug!("[{:>18}] Context Switch Detected", 
+            format!("{} --> {}", old_tidval, tidval));
+        append_traceop(TraceOp::ContextSwitchOp(ContextSwitch { tidval, old_tidval })); 
+    }
+    
+}
 
 /* Wasm Engine Hook: Records MemOps */
 pub extern "C" fn wasm_memop_tracedump(_exec_env: wasm_exec_env_t, differ: i32, access_idx: u32, opcode: i32, addr: i32, size: u32, load_value: i64, expected_value: i64) {
@@ -78,8 +91,9 @@ pub extern "C" fn wasm_memop_tracedump(_exec_env: wasm_exec_env_t, differ: i32, 
     }
     if differ != 0 {
         let tidval = unsafe { gettid() };
+        check_context_switch(tidval);
         let access = Access { access_idx, opcode, addr, size, load_value, expected_value };
-        debug!("[{}] [Trace MEMOP] {} | Diff? {}", tidval, access, differ);
+        debug!("[{:>18}] [Trace MEMOP] {} | Diff? {}", tidval, access, differ);
         /* Add to trace here */
         append_traceop(TraceOp::MemOp(access));
     }
@@ -92,9 +106,10 @@ pub extern "C" fn wasm_call_tracedump(exec_env: wasm_exec_env_t, access_idx: u32
         warn!("[{} | {:#04X}] Unexpected opcode", access_idx, opcode);
     }
     let tidval = unsafe { gettid() };
-    let call_id = create_call_id(call_id, [a1, a2, a3]).unwrap();
+    check_context_switch(tidval);
+    let call_id = CallID::from_parts(call_id, [a1, a2, a3]).unwrap();
     let call_trace = Call { access_idx, opcode, func_idx, return_val, call_id };
-    debug!("[{}] [Trace CALL] {}", tidval, call_trace); 
+    debug!("[{:>18}] [Trace CALL] {}", tidval, call_trace); 
     if log_enabled!(Trace) {
         if let CallID::ScWritev {fd: _, iov, iovcnt} = call_id {
             let _ = unsafe {
