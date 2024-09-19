@@ -79,7 +79,10 @@ fn check_context_switch(tidval: i32) {
     if (old_tidval != tidval) && (old_tidval != 0) {
         debug!("[{:>18}] Context Switch Detected", 
             format!("{} --> {}", old_tidval, tidval));
-        append_traceop(TraceOp::ContextSwitchOp(ContextSwitch { tidval, old_tidval })); 
+        append_traceop(TraceOp::ContextSwitch { 
+            src_tid: old_tidval, 
+            dst_tid: tidval 
+        }); 
     }
     
 }
@@ -92,10 +95,10 @@ pub extern "C" fn wasm_memop_tracedump(_exec_env: wasm_exec_env_t, differ: i32, 
     if differ != 0 {
         let tidval = unsafe { gettid() };
         check_context_switch(tidval);
-        let access = Access { access_idx, opcode, addr, size, load_value, expected_value };
+        let access = TraceOp::Access { access_idx, opcode, addr, size, load_value, expected_value };
         debug!("[{:>18}] [Trace MEMOP] {} | Diff? {}", tidval, access, differ);
         /* Add to trace here */
-        append_traceop(TraceOp::MemOp(access));
+        append_traceop(access);
     }
 }
 
@@ -108,7 +111,7 @@ pub extern "C" fn wasm_call_tracedump(exec_env: wasm_exec_env_t, access_idx: u32
     let tidval = unsafe { gettid() };
     check_context_switch(tidval);
     let call_id = CallID::from_parts(call_id, [a1, a2, a3]).unwrap();
-    let call_trace = Call { access_idx, opcode, func_idx, return_val, call_id };
+    let call_trace = TraceOp::Call { access_idx, opcode, func_idx, return_val, call_id };
     debug!("[{:>18}] [Trace CALL] {}", tidval, call_trace); 
     if log_enabled!(Trace) {
         if let CallID::ScWritev {fd: _, iov, iovcnt} = call_id {
@@ -118,5 +121,5 @@ pub extern "C" fn wasm_call_tracedump(exec_env: wasm_exec_env_t, access_idx: u32
         }
     }
     /* Add to trace here */
-    append_traceop(TraceOp::CallOp(call_trace));
+    append_traceop(call_trace);
 }

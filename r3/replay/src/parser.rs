@@ -43,11 +43,12 @@ pub fn construct_replay_ops(trace: &Vec<TraceOp>) -> BTreeMap<u32, ReplayOp> {
 
     for trace_op in trace {
         match trace_op {
-            TraceOp::CallOp(call) => {
+            TraceOp::Call{access_idx, func_idx, return_val, call_id, ..} => {
                 // Only Generic or Mmap can cause memory stores
-                match call.call_id {
+                match call_id {
                     CallID::ScGeneric | CallID::ScMmap {..} => {
-                        debug!("New call --> {:?}; Flushing queue {:?}", call, queued_seq_calls);
+                        debug!("New call --> {} | {:?}; Flushing queue {:?}", 
+                            *access_idx, *call_id, queued_seq_calls);
                         // Flush queue when we see a new call of this type
                         append_vecd_to_map(&mut replay, &mut queued_seq_calls);
                     }
@@ -55,29 +56,29 @@ pub fn construct_replay_ops(trace: &Vec<TraceOp>) -> BTreeMap<u32, ReplayOp> {
                 }
                 // All call ops eventually need to be replayed for return value
                 queued_seq_calls.push_back(ReplayOpSingle {
-                    access_idx: call.access_idx,
-                    func_idx: call.func_idx,
+                    access_idx: *access_idx,
+                    func_idx: *func_idx,
                     prop: ReplayOpProp {
-                        return_val: call.return_val,
-                        call_id: call.call_id,
+                        return_val: *return_val,
+                        call_id: *call_id,
                         stores: vec![],
                     }
                 });
             }
-            TraceOp::MemOp(access) => {
+            TraceOp::Access{addr, size, load_value, ..} => {
                 // We currently map all accesses to the last call
                 // i.e, the front of queued calls
                 if let Some(ref mut target_call) =  queued_seq_calls.front_mut() {
                     target_call.prop.stores.push(ReplayMemStore {
-                        addr: access.addr,
-                        size: access.size,
-                        value: access.load_value
+                        addr: *addr,
+                        size: *size,
+                        value: *load_value
                     });
                 } else {
                     panic!("No previous call to map access to in trace");
                 }
             }
-            TraceOp::ContextSwitchOp(_) => {
+            TraceOp::ContextSwitch{..} => {
                 debug!("Got context switch op");
             }
         }

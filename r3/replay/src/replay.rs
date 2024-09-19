@@ -53,13 +53,9 @@ fn print_cli(cli: &CLI) {
 pub fn dump_deserialized(deserialized: &TraceData, deserfile: &str) -> Result<(), io::Error> {
     let mut file = fs::File::create(deserfile)?;
     for traceop in deserialized.trace.iter() {
-        match traceop {
-            TraceOp::MemOp(access) => writeln!(file, "{}", access)?,
-            TraceOp::CallOp(call) => writeln!(file, "{}", call)?,
-            TraceOp::ContextSwitchOp(ctx) => writeln!(file, "{}", ctx)?
-        }
+        writeln!(file, "{}", traceop)?;
     }
-    info!("Deserialized output written to {}", deserfile);
+    info!("Deserialized output written to \"{}\"", deserfile);
     Ok(())
 }
 

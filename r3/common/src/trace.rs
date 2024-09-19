@@ -66,55 +66,74 @@ impl FutexOp {
 }
 
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct Access {
-    pub access_idx: u32,
-    pub opcode: i32,
-    pub addr: i32,
-    pub size: u32,
-    pub load_value: i64,
-    pub expected_value: i64,
-}
-impl fmt::Display for Access {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:>7} [{:>6} | {:#04X}] for Addr [{:6}::{}] with Read [{:#0vwidth$X}] ==/== [{:#0vwidth$X}]", 
-            "Access",
-            self.access_idx, self.opcode, self.addr, self.size, self.load_value, self.expected_value, vwidth = (self.size as usize * 2)+2)
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct Call {
-    pub access_idx: u32,
-    pub opcode: i32,
-    pub func_idx: u32,
-    pub return_val: i64,
-    pub call_id: CallID,
-}
-impl fmt::Display for Call {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:>7} [{:>6} | {:#04X}] for [{:?} | {:3}] with Return [{:#X}]", 
-            "Call",
-            self.access_idx, self.opcode, self.call_id, self.func_idx, self.return_val)
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct ContextSwitch {
-    pub tidval: i32,
-    pub old_tidval: i32,
-}
-impl fmt::Display for ContextSwitch {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:>7} [{:7} --> {:7}]", "CSwitch", self.old_tidval, self.tidval)
-    }
-}
+//#[derive(Debug, Serialize, Deserialize, PartialEq)]
+//pub struct Access {
+//    pub access_idx: u32,
+//    pub opcode: i32,
+//    pub addr: i32,
+//    pub size: u32,
+//    pub load_value: i64,
+//    pub expected_value: i64,
+//}
+//impl fmt::Display for Access {
+//    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//        write!(f, "{:>7} [{:>6} | {:#04X}] for Addr [{:6}::{}] with Read [{:#0vwidth$X}] ==/== [{:#0vwidth$X}]", 
+//            "Access",
+//            self.access_idx, self.opcode, self.addr, self.size, self.load_value, self.expected_value, vwidth = (self.size as usize * 2)+2)
+//    }
+//}
+//
+//#[derive(Debug, Serialize, Deserialize, PartialEq)]
+//pub struct Call {
+//    pub access_idx: u32,
+//    pub opcode: i32,
+//    pub func_idx: u32,
+//    pub return_val: i64,
+//    pub call_id: CallID,
+//}
+//impl fmt::Display for Call {
+//    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//        write!(f, "{:>7} [{:>6} | {:#04X}] for [{:?} | {:3}] with Return [{:#X}]", 
+//            "Call",
+//            self.access_idx, self.opcode, self.call_id, self.func_idx, self.return_val)
+//    }
+//}
+//
+//#[derive(Debug, Serialize, Deserialize, PartialEq)]
+//pub struct ContextSwitch {
+//    pub tidval: i32,
+//    pub old_tidval: i32,
+//}
+//impl fmt::Display for ContextSwitch {
+//    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//        write!(f, "{:>7} [{:7} --> {:7}]", "CSwitch", self.old_tidval, self.tidval)
+//    }
+//}
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum TraceOp {
-    MemOp(Access),
-    CallOp(Call),
-    ContextSwitchOp(ContextSwitch)
+    Access { access_idx: u32, opcode: i32, addr: i32, size: u32, load_value: i64, expected_value: i64},
+    Call { access_idx: u32, opcode: i32, func_idx: u32, return_val: i64, call_id: CallID },
+    ContextSwitch { src_tid: i32, dst_tid: i32 },
+}
+impl fmt::Display for TraceOp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            TraceOp::Access { access_idx, opcode, addr, size, load_value, expected_value } => {
+                write!(f, "{:>7} [{:>6} | {:#04X}] for Addr [{:6}::{}] with Read [{:#0vwidth$X}] ==/== [{:#0vwidth$X}]", 
+                    "Access",
+                    access_idx, opcode, addr, size, load_value, expected_value, vwidth = (*size as usize * 2)+2)
+            }
+            TraceOp::Call { access_idx, opcode, func_idx, return_val, call_id } => {
+                write!(f, "{:>7} [{:>6} | {:#04X}] for [{:?} | {:3}] with Return [{:#X}]", 
+                    "Call",
+                    access_idx, opcode, call_id, func_idx, return_val)
+            }
+            TraceOp::ContextSwitch { src_tid, dst_tid } => {
+                write!(f, "{:>7} [{:7} --> {:7}]", "CSwitch", src_tid, dst_tid)
+            }
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
