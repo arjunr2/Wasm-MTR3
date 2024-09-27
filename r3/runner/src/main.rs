@@ -17,7 +17,8 @@ use wamr_rust_sdk::{
 };
 
 mod interface;
-use interface::{wasm_r3_replay_proc_exit, wasm_r3_replay_writev};
+use interface::{wasm_r3_replay_proc_exit, wasm_r3_replay_writev,
+    wasm_r3_replay_futex_log, wasm_r3_replay_thread_exit};
 
 #[derive(Parser,Debug)]
 #[command(version, about, long_about=None)]
@@ -55,7 +56,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .use_system_allocator()
                 .set_host_function_module_name("r3-replay")
                 .register_host_function("SC_proc_exit", wasm_r3_replay_proc_exit as *mut c_void)
+                .register_host_function("SC_thread_exit", wasm_r3_replay_thread_exit as *mut c_void)
                 .register_host_function("SC_writev", wasm_r3_replay_writev as *mut c_void)
+                .register_host_function("SC_futex_log", wasm_r3_replay_futex_log as *mut c_void)
                 .set_max_thread_num(100)
                 .build()?;
             runtime.set_log_level(cli.verbose);

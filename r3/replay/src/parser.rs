@@ -41,9 +41,10 @@ pub fn construct_replay_ops(trace: &Vec<TraceOp>) -> BTreeMap<u32, ReplayOp> {
 
     let mut queued_seq_calls: VecDeque<ReplayOpSingle> = VecDeque::new();
 
+    let mut sync_id_global = 0;
     for trace_op in trace {
         match trace_op {
-            TraceOp::Call{access_idx, func_idx, return_val, call_id, ..} => {
+            TraceOp::Call{tid, access_idx, func_idx, return_val, call_id, ..} => {
                 // Only Generic or Mmap can cause memory stores
                 match call_id {
                     CallID::ScGeneric | CallID::ScMmap {..} => {
@@ -59,9 +60,14 @@ pub fn construct_replay_ops(trace: &Vec<TraceOp>) -> BTreeMap<u32, ReplayOp> {
                     access_idx: *access_idx,
                     func_idx: *func_idx,
                     prop: ReplayOpProp {
+                        tid: *tid,
                         return_val: *return_val,
                         call_id: *call_id,
                         stores: vec![],
+                        sync_id: {
+                            sync_id_global += 1;
+                            sync_id_global
+                        }
                     }
                 });
             }

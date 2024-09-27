@@ -12,9 +12,12 @@ pub struct ReplayMemStore {
 
 #[derive(Debug, Clone)]
 pub struct ReplayOpProp {
+    pub tid: u64,
     pub return_val: i64,
     pub call_id: CallID,
-    pub stores : Vec<ReplayMemStore>
+    pub stores : Vec<ReplayMemStore>,
+    // Used only for synchronization calls to enforce ordering
+    pub sync_id: u64,
 }
 impl fmt::Display for ReplayOpProp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -58,11 +61,13 @@ impl fmt::Display for ReplayOp {
 #[repr(C)]
 #[derive(Debug)]
 pub struct ReplayOpPropCFFI {
+    pub tid: u64,
     pub return_val: i64,
     pub call_id: u32,
     pub call_args: [i64; 3],
     pub stores : *const ReplayMemStore,
     pub num_stores: u32,
+    pub sync_id: u64,
 }
 
 #[repr(C)]

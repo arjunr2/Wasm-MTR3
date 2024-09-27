@@ -31,11 +31,13 @@ fn generate_ffi_ops(replay_ops: &BTreeMap<u32, ReplayOp>) ->
             for prop in &op.props {
                 let (ffi_call_id, ffi_call_args) = prop.call_id.to_parts();
                 ffi_props.push(ReplayOpPropCFFI {
+                    tid: prop.tid,
                     return_val: prop.return_val,
                     call_id: ffi_call_id,
                     call_args: ffi_call_args,
                     stores: prop.stores.as_ptr(),
                     num_stores: prop.stores.len() as u32,
+                    sync_id: prop.sync_id
                 });
             }
             // Push the actual Op data

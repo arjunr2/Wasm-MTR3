@@ -2,6 +2,7 @@ use std::ptr;
 use log::{warn, trace};
 use libc::{self, c_void};
 use std::mem::{size_of, MaybeUninit};
+use serde::{Serialize, Deserialize};
 
 use wamr_rust_sdk::{
     wasm_exec_env_t,
@@ -17,6 +18,25 @@ impl WasmPrimitiveType for i32 {}
 impl WasmPrimitiveType for i64 {}
 impl WasmPrimitiveType for u32 {}
 impl WasmPrimitiveType for u64 {}
+
+
+/* Futex Flags */
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]
+pub enum FutexOp {
+    Wait = 0,
+    Wake = 1,
+    Unknown = -1
+}
+impl FutexOp {
+    pub fn from_i32(op: i32) -> Self {
+        // Mask out FUTEX_PRIVATE (bit 7)
+        match op & 0x7f {
+            0 => FutexOp::Wait,
+            1 => FutexOp::Wake,
+            _ => FutexOp::Unknown,
+        }
+    }
+}
 
 /// Convert a Wasm address to a native address
 pub unsafe fn maddr(exec_env: wasm_exec_env_t, wasm_addr: WasmAddr) -> Addr {

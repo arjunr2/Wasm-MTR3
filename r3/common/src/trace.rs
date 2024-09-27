@@ -1,6 +1,7 @@
 use std::fmt;
 use postcard;
 use serde::{Serialize, Deserialize};
+use crate::wasm2native::FutexOp;
 
 /* Enum for import call personality */
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]
@@ -46,24 +47,6 @@ impl CallID {
     }
 }
 
-
-/* Futex Flags */
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]
-pub enum FutexOp {
-    Wait = 0,
-    Wake = 1,
-    Unknown = -1
-}
-impl FutexOp {
-    fn from_i32(op: i32) -> Self {
-        // Mask out FUTEX_PRIVATE (bit 7)
-        match op & 0x7f {
-            0 => FutexOp::Wait,
-            1 => FutexOp::Wake,
-            _ => FutexOp::Unknown,
-        }
-    }
-}
 
 
 //#[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -112,25 +95,27 @@ impl FutexOp {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum TraceOp {
-    Access { access_idx: u32, opcode: i32, addr: i32, size: u32, load_value: i64, expected_value: i64},
-    Call { access_idx: u32, opcode: i32, func_idx: u32, return_val: i64, call_id: CallID },
-    ContextSwitch { src_tid: i32, dst_tid: i32 },
+    Access { tid: u64, access_idx: u32, opcode: i32, addr: i32, size: u32, load_value: i64, expected_value: i64, differ: bool },
+    Call { tid: u64, access_idx: u32, opcode: i32, func_idx: u32, return_val: i64, call_id: CallID },
+    ContextSwitch { access_idx: u32, src_tid: i32, dst_tid: i32 },
 }
 impl fmt::Display for TraceOp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            TraceOp::Access { access_idx, opcode, addr, size, load_value, expected_value } => {
-                write!(f, "{:>7} [{:>6} | {:#04X}] for Addr [{:6}::{}] with Read [{:#0vwidth$X}] ==/== [{:#0vwidth$X}]", 
-                    "Access",
-                    access_idx, opcode, addr, size, load_value, expected_value, vwidth = (*size as usize * 2)+2)
+            TraceOp::Access { tid, access_idx, opcode, addr, size, load_value, expected_value, differ } => {
+                write!(f, "{:>10} [{:>6}::{:>6} | {:#04X}] for Addr [{:6}::{}] with Read [{:#0vwidth$X}] ==/== [{:#0vwidth$X}]", 
+                    if *differ { "Access" } else { "UCAccess" },
+                    tid, access_idx, opcode, addr, size, load_value, expected_value, vwidth = (*size as usize * 2)+2)
             }
-            TraceOp::Call { access_idx, opcode, func_idx, return_val, call_id } => {
-                write!(f, "{:>7} [{:>6} | {:#04X}] for [{:?} | {:3}] with Return [{:#X}]", 
+            TraceOp::Call { tid, access_idx, opcode, func_idx, return_val, call_id } => {
+                write!(f, "{:>10} [{:>6}::{:>6} | {:#04X}] for [{:?} | {:3}] with Return [{:#X}]", 
                     "Call",
-                    access_idx, opcode, call_id, func_idx, return_val)
+                    tid, access_idx, opcode, call_id, func_idx, return_val)
             }
-            TraceOp::ContextSwitch { src_tid, dst_tid } => {
-                write!(f, "{:>7} [{:7} --> {:7}]", "CSwitch", src_tid, dst_tid)
+            TraceOp::ContextSwitch { access_idx, src_tid, dst_tid } => {
+                write!(f, "{:>10} [{:>6} | {:7} --> {:7}]", 
+                    "CSwitch", 
+                    access_idx, src_tid, dst_tid)
             }
         }
     }
