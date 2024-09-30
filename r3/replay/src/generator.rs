@@ -46,6 +46,7 @@ fn generate_ffi_ops(replay_ops: &BTreeMap<u32, ReplayOp>) ->
                 func_idx: op.func_idx,
                 props: ffi_props.as_ptr(),
                 num_props: ffi_props.len() as u32,
+                max_tid: op.max_tid
             });
         }
     }

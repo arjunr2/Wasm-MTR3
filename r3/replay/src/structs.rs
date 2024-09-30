@@ -38,7 +38,8 @@ pub struct ReplayOpSingle {
 pub struct ReplayOp {
     pub access_idx: u32,
     pub func_idx: u32,
-    pub props: Vec<ReplayOpProp>
+    pub props: Vec<ReplayOpProp>,
+    pub max_tid: u64
 }
 impl ReplayOp {
     pub fn total_stores(&self) -> usize {
@@ -70,6 +71,7 @@ pub struct ReplayOpPropCFFI {
     pub sync_id: u64,
 }
 
+/// Props are assumed to be ordered by TID and then by sync_id
 #[repr(C)]
 #[derive(Debug)]
 pub struct ReplayOpCFFI {
@@ -77,6 +79,7 @@ pub struct ReplayOpCFFI {
     pub func_idx: u32,
     pub props: *const ReplayOpPropCFFI,
     pub num_props: u32,
+    pub max_tid: u64
 }
 impl ReplayOpCFFI {
     pub fn total_stores(&self) -> usize {

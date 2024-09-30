@@ -1,4 +1,4 @@
-use log::{debug, info};
+use log::{debug, info, trace};
 use std::io::{self, Write};
 use std::fs::File;
 use std::collections::{VecDeque, BTreeMap};
@@ -20,15 +20,34 @@ fn append_vecd_to_map(map: &mut BTreeMap<u32, ReplayOp>, vecd: &mut VecDeque<Rep
     while let Some(call) = vecd.pop_front() {
         // If we see a repeated access_idx, append stores/returns
         if let Some(ref mut replay_op) = map.get_mut(&call.access_idx) {
+            replay_op.max_tid = std::cmp::max(replay_op.max_tid, call.prop.tid);
             replay_op.props.push(call.prop);
         } else {
+            let max_tid = call.prop.tid;
             // Otherwise, create a new replay op
             map.insert(call.access_idx, ReplayOp {
                 access_idx: call.access_idx,
                 func_idx: call.func_idx,
-                props: vec![call.prop]
+                props: vec![call.prop],
+                max_tid: max_tid
             });
         }
+    }
+}
+
+/// Reorder replay ops with tids first and then sync_ids; simplfies instrumentation
+fn reorder_replay_ops(replay_ops: &mut BTreeMap<u32, ReplayOp>) {
+    for (_, op) in replay_ops.iter_mut() {
+        op.props.sort_by(|a, b| {
+            if a.tid == b.tid {
+                a.sync_id.cmp(&b.sync_id)
+            } else {
+                a.tid.cmp(&b.tid)
+            }
+        });
+    }
+    for (_, op) in replay_ops.iter_mut() {
+        debug!("Reordered: {:?}", op);
     }
 }
 
@@ -48,7 +67,7 @@ pub fn construct_replay_ops(trace: &Vec<TraceOp>) -> BTreeMap<u32, ReplayOp> {
                 // Only Generic or Mmap can cause memory stores
                 match call_id {
                     CallID::ScGeneric | CallID::ScMmap {..} => {
-                        debug!("New call --> {} | {:?}; Flushing queue {:?}", 
+                        trace!("New call --> {} | {:?}; Flushing queue {:?}", 
                             *access_idx, *call_id, queued_seq_calls);
                         // Flush queue when we see a new call of this type
                         append_vecd_to_map(&mut replay, &mut queued_seq_calls);
@@ -92,6 +111,9 @@ pub fn construct_replay_ops(trace: &Vec<TraceOp>) -> BTreeMap<u32, ReplayOp> {
 
     // Flush any remaining queued calls
     append_vecd_to_map(&mut replay, &mut queued_seq_calls);
+
+    // Reorder replay ops to order by tids first and then sync_ids
+    reorder_replay_ops(&mut replay); 
 
     return replay;
 }
