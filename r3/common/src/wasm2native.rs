@@ -6,7 +6,8 @@ use serde::{Serialize, Deserialize};
 
 use wamr_rust_sdk::{
     wasm_exec_env_t,
-    wasm_runtime_addr_app_to_native, wasm_runtime_get_module_inst
+    wasm_runtime_addr_app_to_native, wasm_runtime_get_module_inst,
+    wasm_runtime_get_exec_env_uid
 };
 
 /// Types for Wasm to Native conversion
@@ -115,4 +116,11 @@ pub unsafe fn get_native_iovec_from_wali(exec_env: wasm_exec_env_t, wasm_iov: Wa
         native_iovs.push(native_iov_elem);
     }
     native_iovs
+}
+
+/// Get the TID of the Wasm executing environment
+#[inline(always)]
+pub fn get_wasmtid(exec_env: wasm_exec_env_t) -> u64 {
+    // Offset the wasm runtime's internal TID by 1, since it starts with 2
+    unsafe { wasm_runtime_get_exec_env_uid(exec_env) - 1 }
 }

@@ -4,7 +4,7 @@ use std::io::{self, Write, Seek, BufWriter};
 use std::fs::{File, remove_file};
 use std::sync::{LazyLock, Mutex, atomic::{AtomicI32, Ordering}};
 use std::path::PathBuf;
-use wamr_rust_sdk::{wasm_exec_env_t, wasm_runtime_get_exec_env_uid};
+use wamr_rust_sdk::wasm_exec_env_t;
 use tempfile::{env};
 use postcard;
 use uuid::Uuid;
@@ -85,12 +85,6 @@ pub fn dump_global_trace(tracefile: &String, sha256: &str) -> io::Result<()>{
 //    }
 //    
 //}
-
-#[inline(always)]
-fn get_wasmtid(exec_env: wasm_exec_env_t) -> u64 {
-    // Offset the wasm runtime's internal TID by 1, since it starts with 2
-    unsafe { wasm_runtime_get_exec_env_uid(exec_env) - 1 }
-}
 
 /* Wasm Engine Hook: Records MemOps */
 pub extern "C" fn wasm_memop_tracedump(exec_env: wasm_exec_env_t, differ: i32, access_idx: u32, opcode: i32, addr: i32, size: u32, load_value: i64, expected_value: i64) {

@@ -1,4 +1,4 @@
-use log::{debug, warn};
+use log::{debug, warn, trace};
 use libc;
 use std::process;
 
@@ -34,4 +34,10 @@ pub fn wasm_r3_replay_writev(exec_env: wasm_exec_env_t, fd: i32, iovs: WasmAddr,
 
 pub fn wasm_r3_replay_futex_log(_exec_env: wasm_exec_env_t, addr: i32, op: i32, val: i32) {
     debug!("Futex Log | {:?}[{}], val: {}", FutexOp::from_i32(op), addr, val);
+}
+
+pub fn wasm_r3_replay_gettid(exec_env: wasm_exec_env_t) -> u32 {
+    let tid = get_wasmtid(exec_env);
+    trace!("GetTID | {}", tid);
+    tid as u32
 }
