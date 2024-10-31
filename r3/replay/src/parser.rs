@@ -53,7 +53,7 @@ fn reorder_replay_ops(replay_ops: &mut BTreeMap<u32, ReplayOp>) {
 
 /// Construct intermediate replay operations from trace to feed into 
 /// replay generator
-/// RelayOps have their operations stored in trace-observed order
+/// ReplayOps have their operations stored in trace-observed order
 /// i.e if n happened before m in the trace, then op_idx(n) < op_idx(m)
 pub fn construct_replay_ops(trace: &Vec<TraceOp>) -> BTreeMap<u32, ReplayOp> {
     let mut replay: BTreeMap<u32, ReplayOp> = BTreeMap::new();

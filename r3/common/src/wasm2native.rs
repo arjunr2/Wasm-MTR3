@@ -119,6 +119,7 @@ pub unsafe fn get_native_iovec_from_wali(exec_env: wasm_exec_env_t, wasm_iov: Wa
 }
 
 /// Get the TID of the Wasm executing environment
+/// TIDs start with 1 and sequentially increment in order of creation 
 #[inline(always)]
 pub fn get_wasmtid(exec_env: wasm_exec_env_t) -> u64 {
     // Offset the wasm runtime's internal TID by 1, since it starts with 2
