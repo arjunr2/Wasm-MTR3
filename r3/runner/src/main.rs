@@ -19,7 +19,7 @@ use wamr_rust_sdk::{
 mod interface;
 use interface::{wasm_r3_replay_proc_exit, wasm_r3_replay_writev,
     wasm_r3_replay_futex_log, wasm_r3_replay_thread_exit, 
-    wasm_r3_replay_gettid};
+    wasm_r3_replay_gettid, wasm_r3_replay_log_call};
 
 #[derive(Parser,Debug)]
 #[command(version, about, long_about=None)]
@@ -61,6 +61,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .register_host_function("SC_writev", wasm_r3_replay_writev as *mut c_void)
                 .register_host_function("SC_futex_log", wasm_r3_replay_futex_log as *mut c_void)
                 .register_host_function("SC_gettid", wasm_r3_replay_gettid as *mut c_void)
+                .register_host_function("SC_log_call", wasm_r3_replay_log_call as *mut c_void)
                 .set_max_thread_num(100)
                 .build()?;
             runtime.set_log_level(cli.verbose);
