@@ -1,18 +1,35 @@
 use log::{debug, info, trace};
 use std::io::{self, Write};
 use std::fs::File;
-use std::collections::{VecDeque, BTreeMap};
+use std::collections::{VecDeque, BTreeMap, BinaryHeap};
 
 use common::trace::*;
 
 use crate::structs::*;
 
-pub fn dump_replay_ops(replay: &BTreeMap<u32, ReplayOp>, outfile: &str) -> Result<(), io::Error> {
-    let mut file = File::create(outfile)?;
-    for (_access_idx, op) in replay {
-        writeln!(file, "{}", op)?;
+pub fn dump_replay_ops(replay: &BTreeMap<u32, ReplayOp>, opsfile: &str) -> Result<(), io::Error> {
+    let log_props_info: BinaryHeap<ReplayPropLogInfo> = 
+        replay.values().flat_map(|op| 
+            op.props.iter().enumerate().map(|(prop_idx, prop)|
+                // Require min-heap based sort
+                ReplayPropLogInfo {
+                    access_idx: op.access_idx,
+                    func_idx: op.func_idx,
+                    tid: prop.tid,
+                    prop_idx: prop_idx as u32,
+                    call_id: prop.call_id,
+                    return_val: prop.return_val,
+                    sync_id: prop.sync_id,
+                }
+            )
+        ).collect();
+
+    let mut file = File::create(opsfile)?;
+    writeln!(file, "{}", ReplayPropLogInfo::debug_string_header())?;
+    for x in log_props_info.into_iter_sorted() {
+        writeln!(file, "{}", x)?;
     }
-    info!("Replay operation log written to {}", outfile);
+    info!("Replay operation log written to {}", opsfile);
     Ok(())
 }
 
@@ -36,7 +53,7 @@ fn append_vecd_to_map(map: &mut BTreeMap<u32, ReplayOp>, vecd: &mut VecDeque<Rep
 }
 
 /// Reorder replay ops with tids first and then sync_ids; simplfies instrumentation
-fn reorder_replay_ops(replay_ops: &mut BTreeMap<u32, ReplayOp>) {
+pub fn reorder_replay_ops(replay_ops: &mut BTreeMap<u32, ReplayOp>) {
     for (_, op) in replay_ops.iter_mut() {
         op.props.sort_by(|a, b| {
             if a.tid == b.tid {
@@ -47,7 +64,7 @@ fn reorder_replay_ops(replay_ops: &mut BTreeMap<u32, ReplayOp>) {
         });
     }
     for (_, op) in replay_ops.iter_mut() {
-        debug!("Reordered: {:?}", op);
+        trace!("Reordered: {:?}", op);
     }
 }
 
@@ -111,9 +128,6 @@ pub fn construct_replay_ops(trace: &Vec<TraceOp>) -> BTreeMap<u32, ReplayOp> {
 
     // Flush any remaining queued calls
     append_vecd_to_map(&mut replay, &mut queued_seq_calls);
-
-    // Reorder replay ops to order by tids first and then sync_ids
-    reorder_replay_ops(&mut replay); 
 
     return replay;
 }

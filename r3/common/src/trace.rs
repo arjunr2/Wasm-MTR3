@@ -96,3 +96,52 @@ impl<'a> TraceData<'a> {
 }
 
 
+/// Container for logging all relevant operations for a single replay prop
+/// Useful when debugging instrumentation and replay interleaving soundness 
+#[derive(Debug)]
+pub struct ReplayPropLogInfo {
+    pub access_idx: u32,
+    pub func_idx: u32,
+    pub tid: u64,
+    pub prop_idx: u32,
+    pub call_id: CallID,
+    pub return_val: i64,
+    pub sync_id: u64,
+}
+impl ReplayPropLogInfo {
+    pub fn debug_string_header() -> String {
+        format!("[{:>8}] -- [{:>3}|{:>8}/{:>6}] | [({:>5}) {} = {:>18}]", 
+            "Sync ID", 
+            "TID", "Acc#", "Prop#", 
+            "Func#", "CallID", "Return Value")
+    }
+    pub fn to_debug_string(&self) -> String {
+        format!("[{:>8}] -- [{:>3}|{:>8}/{:>6}] | [({:>5}) {:?} = {:#16X}]", 
+            self.sync_id, 
+            self.tid, self.access_idx, self.prop_idx, 
+            self.func_idx, self.call_id, self.return_val)
+    }
+}
+impl fmt::Display for ReplayPropLogInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.to_debug_string())
+    }
+}
+
+// Order by sync-id for debug
+impl Ord for ReplayPropLogInfo {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        other.sync_id.cmp(&self.sync_id)
+    }
+}
+impl PartialOrd for ReplayPropLogInfo {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl PartialEq for ReplayPropLogInfo {
+    fn eq(&self, other: &Self) -> bool {
+        self.sync_id == other.sync_id
+    }
+}
+impl Eq for ReplayPropLogInfo {}

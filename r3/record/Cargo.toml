@@ -9,6 +9,10 @@ license.workspace = true
 path = "src/record.rs"
 name = "record"
 
+[[bin]]
+path = "src/deserialize.rs"
+name = "deserialize"
+
 [dependencies]
 clap.workspace = true
 env_logger.workspace = true

@@ -4,7 +4,7 @@ use std::process;
 
 use wamr_rust_sdk::wasm_exec_env_t;
 use common::wasm2native::*;
-use common::trace::CallID;
+use common::trace::{CallID, ReplayPropLogInfo};
 
 pub fn wasm_r3_replay_proc_exit(_exec_env: wasm_exec_env_t, code: i32) {
     debug!("ProcExit | Exiting process with code: {}", code);
@@ -41,11 +41,9 @@ pub fn wasm_r3_replay_log_call(_exec_env: wasm_exec_env_t, access_idx: u32,
         func_idx: u32, tid: u32, prop_idx: u32, call_id: u32, return_val: i64, 
         a1: i64, a2: i64, a3: i64, sync_id: u64) {
     let call_id = CallID::from_parts(call_id, [a1, a2, a3]).unwrap();
-    debug!("[{:>8}] -- [{:>3}|{:>6}] | {:?} = {:#16X} | [{:>8}|{:>5}]", 
-        sync_id, 
-        tid, prop_idx, 
-        call_id, return_val,
-        access_idx, func_idx);
+    debug!("{}", ReplayPropLogInfo {
+        access_idx, func_idx, tid: tid as u64, prop_idx, call_id, return_val, sync_id
+    });
 }
 
 pub fn wasm_r3_replay_gettid(exec_env: wasm_exec_env_t) -> u32 {

@@ -1,3 +1,5 @@
+#![feature(binary_heap_into_iter_sorted)]
+
 use log::info;
 use clap::Parser;
 use std::fs;
@@ -8,7 +10,8 @@ use sha256::digest;
 use common::trace::*;
 
 mod parser;
-use parser::{dump_replay_ops, construct_replay_ops};
+use parser::{dump_replay_ops, construct_replay_ops,
+    reorder_replay_ops};
 
 mod generator;
 use generator::{generate_replay_file};
@@ -26,17 +29,13 @@ struct CLI {
     #[arg(short, long, default_value_t = String::from("replay.wasm"))]
     outfile: String,
 
-    /// Deserialized debug output file
-    #[arg(short = 'f', long)]
-    deserfile: Option<String>,
-
     /// Enable debug calls within generated replay file
     #[arg(short, long)]
     debug: bool,
 
     /// Transformed replay operations output file
-    #[arg(short, long)]
-    replayfile: Option<String>,
+    #[arg(short = 'f', long)]
+    opsfile: Option<String>,
 
     /// Original (unmodified) Wasm file
     #[arg(short, long)]
@@ -47,16 +46,8 @@ fn print_cli(cli: &CLI) {
     info!("Wasmfile: {:?}", cli.wasmfile);
     info!("Tracefile: {:?}", cli.tracefile);
     info!("Generate Debug: {:?}", cli.debug);
+    info!("Opsfile: {:?}", cli.opsfile);
     info!("Outfile: {:?}", cli.outfile);
-}
-
-pub fn dump_deserialized(deserialized: &TraceData, deserfile: &str) -> Result<(), io::Error> {
-    let mut file = fs::File::create(deserfile)?;
-    for traceop in deserialized.trace.iter() {
-        writeln!(file, "{}", traceop)?;
-    }
-    info!("Deserialized output written to \"{}\"", deserfile);
-    Ok(())
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -70,20 +61,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     let wasmbin = fs::read(cli.wasmfile.as_str())?;
     let sha256_wasm = digest(&wasmbin);
     
-    // Read trace file
+    // Read trace file and deserialize
     let tracebin = fs::read(cli.tracefile.as_str())?;
-
     let deserialized = TraceData::deserialize(&tracebin,
          Some(sha256_wasm.as_str()));
 
-    if let Some(deserfile) = cli.deserfile {
-        dump_deserialized(&deserialized, deserfile.as_str())?;
+    let mut replay_ops = construct_replay_ops(&deserialized.trace);
+    // Dump ops before reordering since it's already ordered by sync_ids
+    if let Some(opsfile) = cli.opsfile {
+        dump_replay_ops(&replay_ops, opsfile.as_str()).unwrap();
     }
-
-    let replay_ops = construct_replay_ops(&deserialized.trace);
-    if let Some(replayfile) = cli.replayfile {
-        dump_replay_ops(&replay_ops, replayfile.as_str()).unwrap();
-    }
+    // Reorder replay ops to order by tids first and then sync_ids
+    reorder_replay_ops(&mut replay_ops); 
 
     generate_replay_file(&replay_ops, &wasmbin, &cli.outfile, cli.debug)?; 
 
