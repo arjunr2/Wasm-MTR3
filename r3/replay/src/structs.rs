@@ -26,10 +26,13 @@ impl fmt::Display for ReplayOpProp {
     }
 }
 
+/// Single operations can either point to function calls or
+/// implicit synchronization points from Wasm (e.g. cmpxchg)
 #[derive(Debug, Clone)]
 pub struct ReplayOpSingle {
     pub access_idx: u32,
     pub func_idx: u32,
+    pub implicit_sync: bool,
     pub prop: ReplayOpProp,
 }
 
@@ -38,6 +41,7 @@ pub struct ReplayOpSingle {
 pub struct ReplayOp {
     pub access_idx: u32,
     pub func_idx: u32,
+    pub implicit_sync: bool,
     pub props: Vec<ReplayOpProp>,
     pub max_tid: u64
 }
@@ -52,8 +56,13 @@ impl ReplayOp {
 }
 impl fmt::Display for ReplayOp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let fx = self.func_idx.to_string();
         write!(f, "ReplayOp [{:6} | {:3}] with PropOp[{}](stores: {})", 
-            self.access_idx, self.func_idx, self.props.len(), self.total_stores())
+            self.access_idx, 
+            if self.implicit_sync { "SY" } else { &fx }, 
+            self.props.len(), 
+            self.total_stores()
+        )
     }
 }
 
@@ -77,6 +86,7 @@ pub struct ReplayOpPropCFFI {
 pub struct ReplayOpCFFI {
     pub access_idx: u32,
     pub func_idx: u32,
+    pub implicit_sync: u32,
     pub props: *const ReplayOpPropCFFI,
     pub num_props: u32,
     pub max_tid: u64
@@ -93,7 +103,9 @@ impl ReplayOpCFFI {
 }
 impl fmt::Display for ReplayOpCFFI {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ReplayOp [{:6} | {:3}] with PropOp[{}](stores: {})", 
-            self.access_idx, self.func_idx, self.num_props, self.total_stores())
+        write!(f, "ReplayOp [{:6} | {:3}] with PropOp[{}](stores: {}) {}", 
+            self.access_idx, self.func_idx, self.num_props, 
+            self.total_stores(), 
+            if self.implicit_sync != 0  { "[SYNC]" } else { "" })
     }
 }

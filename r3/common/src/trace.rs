@@ -52,8 +52,8 @@ impl CallID {
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum TraceOp {
     Access { tid: u64, access_idx: u32, opcode: i32, addr: i32, size: u32, load_value: i64, expected_value: i64, differ: bool },
+    SyncAccess { tid: u64, access_idx: u32, opcode: i32, addr: i32, size: u32, load_value: i64, expected_value: i64, differ: bool },
     Call { tid: u64, access_idx: u32, opcode: i32, func_idx: u32, return_val: i64, call_id: CallID },
-    ContextSwitch { access_idx: u32, src_tid: i32, dst_tid: i32 },
 }
 impl fmt::Display for TraceOp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -63,15 +63,22 @@ impl fmt::Display for TraceOp {
                     if *differ { "Access" } else { "UCAccess" },
                     tid, access_idx, opcode, addr, size, load_value, expected_value, vwidth = (*size as usize * 2)+2)
             }
+            TraceOp::SyncAccess { tid, access_idx, opcode, addr, size, load_value, expected_value, differ } => {
+                if *differ {
+                    write!(f, "{:>10} [{:>6}::{:>6} | {:#04X}] for Addr [{:6}::{}] with Read [{:#0vwidth$X}] ==/== [{:#0vwidth$X}]", 
+                        "SyAccess",
+                        tid, access_idx, opcode, addr, size, load_value, expected_value, vwidth = (*size as usize * 2)+2)
+                } else {
+                    write!(f, "{:>10} [{:>6}::{:>6} | {:#04X}] for Addr [{:6}::{}] with Read [{:#0vwidth$X}]", 
+                        "UCSyAccess",
+                        tid, access_idx, opcode, addr, size, load_value, vwidth = (*size as usize * 2)+2
+                    )
+                }
+            }
             TraceOp::Call { tid, access_idx, opcode, func_idx, return_val, call_id } => {
                 write!(f, "{:>10} [{:>6}::{:>6} | {:#04X}] for [{:?} | {:3}] with Return [{:#X}]", 
                     "Call",
                     tid, access_idx, opcode, call_id, func_idx, return_val)
-            }
-            TraceOp::ContextSwitch { access_idx, src_tid, dst_tid } => {
-                write!(f, "{:>10} [{:>6} | {:7} --> {:7}]", 
-                    "CSwitch", 
-                    access_idx, src_tid, dst_tid)
             }
         }
     }

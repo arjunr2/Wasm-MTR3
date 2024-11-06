@@ -69,32 +69,26 @@ pub fn dump_global_trace(tracefile: &String, sha256: &str) -> io::Result<()>{
 }
 
 
-/* Record context switch operations, if any */
-//static LAST_TID: AtomicI32 = AtomicI32::new(0);
-//#[inline(always)]
-//fn check_context_switch(tidval: i32, access_idx: u32) {
-//    let old_tidval = LAST_TID.swap(tidval, Ordering::Relaxed);
-//    if (old_tidval != tidval) && (old_tidval != 0) {
-//        debug!("[{:>18}] Context Switch Detected", 
-//            format!("{} --> {}", old_tidval, tidval));
-//        append_traceop(TraceOp::ContextSwitch { 
-//            access_idx,
-//            src_tid: old_tidval, 
-//            dst_tid: tidval 
-//        }); 
-//    }
-//    
-//}
-
 /* Wasm Engine Hook: Records MemOps */
-pub extern "C" fn wasm_memop_tracedump(exec_env: wasm_exec_env_t, differ: i32, access_idx: u32, opcode: i32, addr: i32, size: u32, load_value: i64, expected_value: i64) {
+pub extern "C" fn wasm_memop_tracedump(exec_env: wasm_exec_env_t, 
+        differ: i32, access_idx: u32, opcode: i32, 
+        addr: i32, size: u32, load_value: i64, expected_value: i64, 
+        is_sync_op: i32) {
     let tid = get_wasmtid(exec_env);
     if addr == 0 {
         warn!("[{} | {:#04X}] Access to address [{}::{}] may be invalid", access_idx, opcode, addr, size);
     }
-    if differ != 0 {
+    // Synchronization operations are always traced
+    if is_sync_op != 0 {
+        let sync_access = TraceOp::SyncAccess { tid, access_idx, opcode, addr, size, load_value, expected_value, differ: differ != 0 };
+        debug!("[{:>18}] [Trace SYNCACCESS] {}", tid, sync_access);
+        /* Add to trace here */
+        append_traceop(sync_access);
+    }
+    // Non-Synchronized operations are only traced when diff
+    else if differ != 0 {
         let access = TraceOp::Access { tid, access_idx, opcode, addr, size, load_value, expected_value, differ: differ != 0 };
-        debug!("[{:>18}] [Trace MEMOP] {} | Diff? {}", tid, access, differ);
+        debug!("[{:>18}] [Trace ACCESS] {} | Diff? {}", tid, access, differ);
         /* Add to trace here */
         append_traceop(access);
     }
