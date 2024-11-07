@@ -2,7 +2,7 @@ use log::{debug, warn, trace};
 use libc;
 use std::process;
 
-use wamr_rust_sdk::wasm_exec_env_t;
+use wamr_rust_sdk::{wasm_exec_env_t, wasm_cluster_cancel_thread};
 use common::wasm2native::*;
 use common::trace::{CallID, ReplayPropLogInfo};
 
@@ -11,10 +11,10 @@ pub fn wasm_r3_replay_proc_exit(_exec_env: wasm_exec_env_t, code: i32) {
     process::exit(code);
 }
 
-pub fn wasm_r3_replay_thread_exit(_exec_env: wasm_exec_env_t, code: i32) {
+pub fn wasm_r3_replay_thread_exit(exec_env: wasm_exec_env_t, code: i32) {
     debug!("ThreadExit | Exiting thread with code: {}", code);
     unsafe {
-        libc::syscall(libc::SYS_exit, code);
+        wasm_cluster_cancel_thread(exec_env);
     }
 }
 

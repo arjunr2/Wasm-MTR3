@@ -22,7 +22,7 @@ RUST_LOG=info ./target/debug/deserialize
 echo ""
 
 # Generate replay binary
-RUST_LOG=debug ./target/debug/replay -o $replayprefix.wasm -w $wasmmod -f $replayprefix.ops -d
+RUST_LOG=info ./target/debug/replay -o $replayprefix.wasm -w $wasmmod -f $replayprefix.ops -d
 wasm2wat --enable-threads $replayprefix.wasm -o $replayprefix.wat
 echo ""
 

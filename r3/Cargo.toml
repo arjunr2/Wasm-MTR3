@@ -1,5 +1,11 @@
 [workspace]
-members = ["record", "reduce", "replay", "common", "runner"]
+members = [
+  "record", 
+  "reduce", 
+  "replay", 
+  "common", 
+  "runner"
+]
 resolver = "2"
 
 [workspace.package]

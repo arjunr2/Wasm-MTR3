@@ -119,9 +119,12 @@ pub unsafe fn get_native_iovec_from_wali(exec_env: wasm_exec_env_t, wasm_iov: Wa
 }
 
 /// Get the TID of the Wasm executing environment
-/// TIDs start with 1 and sequentially increment in order of creation 
+/// TIDs start with 0 and sequentially increment in order of creation 
+/// TID 0 should be used for start function and TID 1 for main function
+///   and sequentially increment in order of creation 
 #[inline(always)]
 pub fn get_wasmtid(exec_env: wasm_exec_env_t) -> u64 {
-    // Offset the wasm runtime's internal TID by 1, since it starts with 2
+    // WAMR uses TID=1 for the instance that runs the start_function, and TID=2 for
+    // the main thread thereafter, so offset the wasm runtime's internal TID by 1
     unsafe { wasm_runtime_get_exec_env_uid(exec_env) - 1 }
 }
