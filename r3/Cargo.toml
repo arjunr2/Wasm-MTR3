@@ -25,6 +25,7 @@ serde = "1.0.204"
 sha256 = "1.5.0"
 nix = { version = "0.29.0", features = ["process"] }
 wamr-rust-sdk = { git = "https://github.com/arjunr2/wamr-rust-sdk.git" }
+common = { path = "common" }
 #wamr-rust-sdk = { path = "../../wamr-rust-sdk" }
 bindgen = "0.69.4"
 cmake = "0.1.50"

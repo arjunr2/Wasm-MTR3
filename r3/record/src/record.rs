@@ -1,31 +1,27 @@
-use log::{info, warn};
+//! Binary crate for recording a Wasm modules execution and generate a Trace
 use clap::Parser;
-use std::fs;
-use libc::{c_void};
-use sha256::digest;
-use std::error::{Error};
-use std::process;
-use nix::unistd::{fork, ForkResult};
+use libc::c_void;
+use log::{info, warn};
 use nix::sys::wait::{waitpid, WaitStatus};
+use nix::unistd::{fork, ForkResult};
+use sha256::digest;
+use std::error::Error;
+use std::fs;
+use std::process;
 
-use wamr_rust_sdk::{
-    runtime::Runtime, module::Module, instance::Instance,
+use wamr_rust_sdk::{instance::Instance, module::Module, runtime::Runtime};
+
+use wamr_rust_sdk::{log_level_t, LOG_LEVEL_WARNING};
+
+use common::instrument::{destroy_instrument_module, instrument_module, InstrumentArgs};
+
+pub mod record_interface;
+use record_interface::{
+    dump_global_trace, initialize_tmpfile_name, wasm_call_tracedump, wasm_memop_tracedump,
 };
 
-use wamr_rust_sdk::{
-    log_level_t,
-    LOG_LEVEL_WARNING
-};
-
-use common::instrument::{InstrumentArgs, instrument_module, 
-    destroy_instrument_module};
-
-mod tracer;
-use tracer::{wasm_memop_tracedump, wasm_call_tracedump, dump_global_trace, 
-    initialize_tmpfile_name};
-
-
-#[derive(Parser,Debug)]
+/// Command-Line Arguments
+#[derive(Parser, Debug)]
 #[command(version, about, long_about=None)]
 struct CLI {
     /// Instrumentation Scheme
@@ -48,26 +44,28 @@ struct CLI {
     #[arg(short, long)]
     instfile: Option<String>,
 
-    /// Input Command (Wasm program path + Argv) 
+    /// Input Command (Wasm program path + Argv)
     #[arg(num_args = 1..)]
     input_command: Vec<String>,
 }
 
-fn print_cli(cli: &CLI) {
-    info!("Scheme: {}", cli.scheme);
-    info!("Instrumentation Arguments: {:?}", cli.instargs);
-    info!("Input Command: {:?}", cli.input_command);
-    info!("Instfile [optional]: {:?}", cli.instfile);
-    info!("Outfile: {:?}", cli.outfile);
+impl CLI {
+    /// Print the CLI configuration
+    fn print(&self) {
+        info!("Scheme: {}", self.scheme);
+        info!("Instrumentation Arguments: {:?}", self.instargs);
+        info!("Input Command: {:?}", self.input_command);
+        info!("Instfile [optional]: {:?}", self.instfile);
+        info!("Outfile: {:?}", self.outfile);
+    }
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
-    env_logger::builder()
-        .format_timestamp_millis()
-        .init();
+/// Entrypoint for `record`
+pub fn main() -> Result<(), Box<dyn Error>> {
+    env_logger::builder().format_timestamp_millis().init();
 
     let cli = CLI::parse();
-    print_cli(&cli);
+    cli.print();
 
     // Read wasm file, compute its digest
     let infile = cli.input_command[0].as_str();
@@ -75,19 +73,23 @@ fn main() -> Result<(), Box<dyn Error>> {
     let sha256_infile = digest(&contents);
 
     let args: Vec<&str> = cli.instargs.iter().map(|s| s.as_str()).collect();
-    let inst_module: &[u8] = instrument_module(&contents, cli.scheme.as_str(), InstrumentArgs::Generic(&args[..]))?;
+    let inst_module: &[u8] = instrument_module(
+        &contents,
+        cli.scheme.as_str(),
+        InstrumentArgs::Generic(&args[..]),
+    )?;
     if let Some(instfile) = cli.instfile {
         info!("Writing module to {}", instfile);
         fs::write(instfile, inst_module)?;
     }
 
-    /* This needs to be done before fork to prevent double initialization of
-        Lazy */
+    // This needs to be done before fork to prevent double initialization of
+    // Lazy
     initialize_tmpfile_name();
     match unsafe { fork() }? {
         ForkResult::Child => {
             info!("Wasm engine executing with PID: {}", process::id());
-            /* WAMR Instantiate and Run */
+            // WAMR Instantiate and Run
             let runtime = Runtime::builder()
                 .use_system_allocator()
                 .set_host_function_module_name("instrument")
@@ -103,16 +105,14 @@ fn main() -> Result<(), Box<dyn Error>> {
             info!("Wasm module safely exited from child process");
             process::exit(0);
         }
-        ForkResult::Parent { child } => {
-            match waitpid(child, None)? {
-                WaitStatus::Exited(pid, status) => {
-                    info!("Wasm engine (PID: {}) exited with status: {}", pid, status);
-                }
-                status => {
-                    warn!("Wasm engine exited with bad status: {:?}", status);
-                }
+        ForkResult::Parent { child } => match waitpid(child, None)? {
+            WaitStatus::Exited(pid, status) => {
+                info!("Wasm engine (PID: {}) exited with status: {}", pid, status);
             }
-        }
+            status => {
+                warn!("Wasm engine exited with bad status: {:?}", status);
+            }
+        },
     }
 
     dump_global_trace(&cli.outfile, sha256_infile.as_str())?;
