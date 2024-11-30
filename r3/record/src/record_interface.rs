@@ -13,6 +13,7 @@ use wamr_rust_sdk::wasm_exec_env_t;
 
 use common::trace::*;
 use common::wasm2native::*;
+use common::WasmOpcode;
 
 /// A Lazy-initialized temporary disk-backed filepath
 static TMP_FILEPATH: Lazy<PathBuf> = Lazy::new(|| {
@@ -139,7 +140,7 @@ pub extern "C" fn wasm_call_tracedump(
     a3: i64,
 ) {
     let tid = get_wasmtid(exec_env);
-    if opcode != 0x10 {
+    if opcode != WasmOpcode::Call as i32 {
         warn!("[{} | {:#04X}] Unexpected opcode", access_idx, opcode);
     }
     let call_id = CallID::from_parts(call_id, [a1, a2, a3]).unwrap();

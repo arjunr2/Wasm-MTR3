@@ -5,3 +5,6 @@
 pub mod instrument;
 pub mod trace;
 pub mod wasm2native;
+pub use opcodes::WasmOpcode;
+
+mod opcodes;
